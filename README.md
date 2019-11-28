@@ -49,6 +49,9 @@ use Lengbin\YiiDb\Query\BaseQuery;
 
 class Query extends BaseQuery
 {
+    // 是否开启中文翻译 
+    // 默认为true, 如果 false, message 是英文
+    public $isTranslate = true;
 
     /**
      *

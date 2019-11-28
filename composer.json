@@ -5,7 +5,7 @@
   "keywords": ["yii2","extension","db"],
   "license": "MIT",
   "require": {
-    "php": ">=5.6.0",
+    "php": ">=7.2.0",
     "yiisoft/arrays": "^3.0@dev",
     "yiisoft/strings": "^3.0@dev"
   },
