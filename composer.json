@@ -1,0 +1,31 @@
+{
+  "name": "lengbin/yii-db",
+  "description": "yii pull away db",
+  "type": "library",
+  "keywords": ["yii2","extension","db"],
+  "license": "MIT",
+  "require": {
+    "php": ">=5.6.0",
+    "yiisoft/arrays": "^3.0@dev",
+    "yiisoft/strings": "^3.0@dev"
+  },
+  "minimum-stability": "stable",
+  "autoload": {
+    "psr-4": {
+      "Lengbin\\YiiDb\\": "src",
+      "Lengbin\\YiiDb\\ActiveRecord\\": "src/ActiveRecord",
+      "Lengbin\\YiiDb\\Conditions\\": "src/Conditions",
+      "Lengbin\\YiiDb\\Event\\": "src/Event",
+      "Lengbin\\YiiDb\\Exception\\": "src/Exception",
+      "Lengbin\\YiiDb\\Mysql\\": "src/Mysql",
+      "Lengbin\\YiiDb\\Query\\": "src/Query",
+      "Lengbin\\YiiDb\\Validators\\": "src/Validators"
+    }
+  },
+  "authors": [
+    {
+      "name": "lengbin",
+      "email": "xykxyk2008@163.com"
+    }
+  ]
+}
