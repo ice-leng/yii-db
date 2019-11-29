@@ -7,7 +7,6 @@
 </p>
 
 当前版本为测试版本
-
 抽离yii2 的db 库, 使扩展可以集成到任何框架
 目前抽离
 - Query
@@ -33,16 +32,18 @@ or add
 ```
 "lengbin/yii-db": "*"
 ```
-
 to the require section of your `composer.json` file.
 
+扩展 只是提供了yii db 的查询器和验证器
+数据库实例相关需要自己去实现，配置如下图
 
 Configs
 -----
-demo文件有测试案例
+
 ``` php
-//The scan directories, you should use real path there.
-Query。php
+
+// 创建 Query。php 继承 Lengbin\YiiDb\Query\BaseQuery
+// 覆写一下功能
 <?php
 
 use Lengbin\YiiDb\Query\BaseQuery;
@@ -55,7 +56,7 @@ class Query extends BaseQuery
 
     /**
      *
-     * 连接数据库对象
+     * 创建一个连接数据库实例对象
      *
      * @return object
      */
@@ -75,7 +76,7 @@ class Query extends BaseQuery
     }
 
     /**
-     * 缓存类
+     * 缓存实例
      *
      * 实现 \Psr\SimpleCache\CacheInterface
      *

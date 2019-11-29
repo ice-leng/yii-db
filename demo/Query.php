@@ -2,6 +2,10 @@
 
 use Lengbin\YiiDb\Query\BaseQuery;
 
+/**
+// 创建 Query。php 继承 Lengbin\YiiDb\Query\BaseQuery
+// 覆写一下功能
+ */
 class Query extends BaseQuery
 {
 
@@ -11,7 +15,7 @@ class Query extends BaseQuery
 
     /**
      *
-     * 连接数据库对象
+     * 创建一个连接数据库实例对象
      *
      * @return object
      */
@@ -34,6 +38,7 @@ class Query extends BaseQuery
      * 缓存类
      *
      * 实现 \Psr\SimpleCache\CacheInterface
+     * 缓存实例
      *
      * @return \Psr\SimpleCache\CacheInterface
      */
