@@ -62,7 +62,7 @@ class Query extends BaseQuery
      */
     public function getDb()
     {
-        return new Db();
+        return new Pdo;
     }
 
     /**
