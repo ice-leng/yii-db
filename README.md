@@ -203,6 +203,8 @@ Tests
 其他
 ----
 
+如果出现 minimum-stability冲突 [解决方案](https://blog.csdn.net/qq_32642039/article/details/78292685)
+
 
 有问题请及时联系我，反正也会在使用中修复 - - ！
 
