@@ -16,4 +16,6 @@ interface QueryDbInterface
 
     public function rollBack();
 
+    public function lastInsertId($sequenceName = '');
+
 }
