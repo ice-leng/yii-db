@@ -7,6 +7,7 @@
 
 namespace Lengbin\YiiDb\ActiveRecord;
 
+use Lengbin\YiiDb\StaticInstanceInterface;
 
 /**
  * ActiveRecordInterface.
@@ -15,7 +16,7 @@ namespace Lengbin\YiiDb\ActiveRecord;
  * @author Carsten Brandt <mail@cebe.cc>
  * @since 2.0
  */
-interface ActiveRecordInterface
+interface ActiveRecordInterface extends StaticInstanceInterface
 {
     /**
      * Returns the primary key **name(s)** for this AR class.

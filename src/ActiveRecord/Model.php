@@ -14,6 +14,8 @@ use Lengbin\YiiDb\Exception\InvalidConfigException;
 use Lengbin\YiiDb\Validators\Validator;
 use Yiisoft\Strings\Inflector;
 use Yiisoft\Strings\StringHelper;
+use Lengbin\YiiDb\StaticInstanceInterface;
+use Lengbin\YiiDb\StaticInstanceTrait;
 
 /**
  * Model is the base class for data models.
@@ -52,9 +54,10 @@ use Yiisoft\Strings\StringHelper;
  * @author Qiang Xue <qiang.xue@gmail.com>
  * @since 2.0
  */
-class Model  implements  \IteratorAggregate, \ArrayAccess, Arrayable
+class Model  implements  StaticInstanceInterface,\IteratorAggregate, \ArrayAccess, Arrayable
 {
     use ArrayableTrait;
+    use StaticInstanceTrait;
 
     /**
      * The name of the default scenario.
