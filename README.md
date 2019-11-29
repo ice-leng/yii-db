@@ -170,7 +170,7 @@ Usage
     
 ```
 
-tests
+Tests
 ------
 - Query
   - from
@@ -190,8 +190,18 @@ tests
   - EVENT_BEFORE_UPDATE
 
 
+去掉不必要的
+----
+- behaviors
+- 上传验证
+- 图片验证
+- 文件上传验证
+- 验证码验证
+
+
 其他
 ----
+
 
 有问题请及时联系我，反正也会在使用中修复 - - ！
 
