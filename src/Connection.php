@@ -17,11 +17,12 @@ class Connection
     public $schemaCacheDuration = 3600;
 
 
-    public function __construct($query, $driverName = 'mysql', $tablePrefix = '')
+    public function __construct($query, $driverName = 'mysql', $tablePrefix = '', $schemaCacheDuration = 3600)
     {
         $this->_query = $query;
         $this->_driverName = $driverName;
         $this->tablePrefix = $tablePrefix;
+        $this->schemaCacheDuration = $schemaCacheDuration;
     }
 
     /**
