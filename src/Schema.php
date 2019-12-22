@@ -896,7 +896,7 @@ abstract class Schema
         $cache->set(
             $this->getCacheKey($name),
             $metadata,
-            0
+            $this->db->schemaCacheDuration
         );
     }
 }

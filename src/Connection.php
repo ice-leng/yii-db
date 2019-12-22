@@ -14,6 +14,8 @@ class Connection
     private $_quotedTableNames;
     public $tablePrefix = '';
 
+    public $schemaCacheDuration = 3600;
+
 
     public function __construct($query, $driverName = 'mysql', $tablePrefix = '')
     {
