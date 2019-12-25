@@ -267,6 +267,8 @@ class QueryBuilder
         if ($union !== '') {
             $sql = "($sql){$this->separator}$union";
         }
+        //增加转义, 否则部分带{{}}和 [[]]的报错
+        $sql = $this->db->quoteSql($sql);
         return [$sql, $params];
     }
 

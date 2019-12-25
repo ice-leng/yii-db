@@ -122,6 +122,9 @@ class BaseQuery extends Model implements QueryInterface, ExpressionInterface, Qu
 
     public $tablePrefix = '';
 
+    /** @var int  表结构缓存时间 */
+    public $schemaCacheDuration = 3600;
+
     private $_driverName = 'mysql';
 
     /**
@@ -146,7 +149,7 @@ class BaseQuery extends Model implements QueryInterface, ExpressionInterface, Qu
 
     public function getConnect()
     {
-        return new Connection($this, $this->_driverName, $this->tablePrefix);
+        return new Connection($this, $this->_driverName, $this->tablePrefix, $this->schemaCacheDuration);
     }
 
     public function buildSql()
