@@ -1,19 +1,22 @@
 <?php
 /**
- * @link      http://www.yiiframework.com/
+ * @link http://www.yiiframework.com/
+ *
  * @copyright Copyright (c) 2008 Yii Software LLC
- * @license   http://www.yiiframework.com/license/
+ * @license http://www.yiiframework.com/license/
  */
+
+declare(strict_types=1);
 
 namespace Lengbin\YiiDb\Conditions;
 
 use Lengbin\YiiDb\Exception\InvalidArgumentException;
 use Lengbin\YiiDb\ExpressionInterface;
-use Lengbin\YiiDb\Query\BaseQuery;
+use Lengbin\YiiDb\Query;
 
 /**
  * Class BetweenColumnCondition represents a `BETWEEN` condition where
- * values is between two columns. For example:
+ * values is between two columns. For example:.
  *
  * ```php
  * new BetweenColumnsCondition(42, 'BETWEEN', 'min_value', 'max_value')
@@ -36,12 +39,13 @@ use Lengbin\YiiDb\Query\BaseQuery;
  * ```
  *
  * @author Dmytro Naumenko <d.naumenko.a@gmail.com>
- * @since  2.0.14
+ *
+ * @since 2.0.14
  */
 class BetweenColumnsCondition implements ConditionInterface
 {
     /**
-     * @var string $operator the operator to use (e.g. `BETWEEN` or `NOT BETWEEN`)
+     * @var string the operator to use (e.g. `BETWEEN` or `NOT BETWEEN`)
      */
     private $operator;
     /**
@@ -49,11 +53,11 @@ class BetweenColumnsCondition implements ConditionInterface
      */
     private $value;
     /**
-     * @var string|ExpressionInterface|BaseQuery the column name or expression that is a beginning of the interval
+     * @var string|ExpressionInterface|Query the column name or expression that is a beginning of the interval
      */
     private $intervalStartColumn;
     /**
-     * @var string|ExpressionInterface|BaseQuery the column name or expression that is an end of the interval
+     * @var string|ExpressionInterface|Query the column name or expression that is an end of the interval
      */
     private $intervalEndColumn;
 
@@ -90,7 +94,7 @@ class BetweenColumnsCondition implements ConditionInterface
     }
 
     /**
-     * @return string|ExpressionInterface|BaseQuery
+     * @return string|ExpressionInterface|Query
      */
     public function getIntervalStartColumn()
     {
@@ -98,7 +102,7 @@ class BetweenColumnsCondition implements ConditionInterface
     }
 
     /**
-     * @return string|ExpressionInterface|BaseQuery
+     * @return string|ExpressionInterface|Query
      */
     public function getIntervalEndColumn()
     {
@@ -107,6 +111,7 @@ class BetweenColumnsCondition implements ConditionInterface
 
     /**
      * {@inheritdoc}
+     *
      * @throws InvalidArgumentException if wrong number of operands have been given.
      */
     public static function fromArrayDefinition($operator, $operands)

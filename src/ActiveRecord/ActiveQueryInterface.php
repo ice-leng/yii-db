@@ -5,9 +5,12 @@
  * @license http://www.yiiframework.com/license/
  */
 
+declare(strict_types=1);
+
 namespace Lengbin\YiiDb\ActiveRecord;
 
-use Lengbin\YiiDb\Query\QueryInterface;
+use Lengbin\YiiDb\ConnectionInterface;
+use Lengbin\YiiDb\QueryInterface;
 
 /**
  * ActiveQueryInterface defines the common interface to be implemented by active record query classes.
@@ -33,12 +36,13 @@ interface ActiveQueryInterface extends QueryInterface
 
     /**
      * Executes query and returns a single row of result.
+     * @param ConnectionInterface $db the DB connection used to create the DB command.
      * If `null`, the DB connection returned by [[ActiveQueryTrait::$modelClass|modelClass]] will be used.
      * @return ActiveRecordInterface|array|null a single row of query result. Depending on the setting of [[asArray]],
      * the query result may be either an array or an ActiveRecord object. `null` will be returned
      * if the query results in nothing.
      */
-    public function one();
+    public function one($db = null);
 
     /**
      * Sets the [[indexBy]] property.
@@ -79,7 +83,7 @@ interface ActiveQueryInterface extends QueryInterface
      * Customer::find()->with('orders.address')->all();
      * // find customers together with their country and orders of status 1
      * Customer::find()->with([
-     *     'orders' => function (\yii\db\ActiveQuery $query) {
+     *     'orders' => function (\Yiisoft\ActiveRecord\ActiveQuery $query) {
      *         $query->andWhere('status = 1');
      *     },
      *     'country',

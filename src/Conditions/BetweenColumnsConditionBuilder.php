@@ -1,35 +1,43 @@
 <?php
 /**
  * @link http://www.yiiframework.com/
+ *
  * @copyright Copyright (c) 2008 Yii Software LLC
  * @license http://www.yiiframework.com/license/
  */
+
+declare(strict_types=1);
 
 namespace Lengbin\YiiDb\Conditions;
 
 use Lengbin\YiiDb\ExpressionBuilderInterface;
 use Lengbin\YiiDb\ExpressionBuilderTrait;
 use Lengbin\YiiDb\ExpressionInterface;
-use Lengbin\YiiDb\Query\BaseQuery;
+use Lengbin\YiiDb\Query;
 
 /**
- * Class BetweenColumnsConditionBuilder builds objects of [[BetweenColumnsCondition]]
+ * Class BetweenColumnsConditionBuilder builds objects of [[BetweenColumnsCondition]].
  *
  * @author Dmytro Naumenko <d.naumenko.a@gmail.com>
+ *
  * @since 2.0.14
  */
 class BetweenColumnsConditionBuilder implements ExpressionBuilderInterface
 {
     use ExpressionBuilderTrait;
 
-
     /**
      * Method builds the raw SQL from the $expression that will not be additionally
      * escaped or quoted.
      *
      * @param ExpressionInterface|BetweenColumnsCondition $expression the expression to be built.
-     * @param array $params the binding parameters.
+     * @param array                                       $params     the binding parameters.
+     *
      * @return string the raw SQL that will not be additionally escaped or quoted.
+     * @throws \Lengbin\YiiDb\Exception\Exception
+     * @throws \Lengbin\YiiDb\Exception\InvalidConfigException
+     * @throws \Lengbin\YiiDb\Exception\NotSupportedException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     public function build(ExpressionInterface $expression, array &$params = [])
     {
@@ -45,13 +53,18 @@ class BetweenColumnsConditionBuilder implements ExpressionBuilderInterface
     /**
      * Prepares column name to be used in SQL statement.
      *
-     * @param BaseQuery|ExpressionInterface|string $columnName
-     * @param array $params the binding parameters.
+     * @param Query|ExpressionInterface|string $columnName
+     * @param array                            $params the binding parameters.
+     *
      * @return string
+     * @throws \Lengbin\YiiDb\Exception\Exception
+     * @throws \Lengbin\YiiDb\Exception\InvalidConfigException
+     * @throws \Lengbin\YiiDb\Exception\NotSupportedException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     protected function escapeColumnName($columnName, &$params = [])
     {
-        if ($columnName instanceof BaseQuery) {
+        if ($columnName instanceof Query) {
             list($sql, $params) = $this->queryBuilder->build($columnName, $params);
             return "($sql)";
         } elseif ($columnName instanceof ExpressionInterface) {
@@ -68,6 +81,7 @@ class BetweenColumnsConditionBuilder implements ExpressionBuilderInterface
      *
      * @param mixed $value
      * @param array $params passed by reference
+     *
      * @return string
      */
     protected function createPlaceholder($value, &$params)

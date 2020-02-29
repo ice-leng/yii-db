@@ -12,7 +12,6 @@ use Lengbin\YiiDb\ActiveRecord\ActiveQueryInterface;
 use Lengbin\YiiDb\ActiveRecord\ActiveRecord;
 use Lengbin\YiiDb\ActiveRecord\ActiveRecordInterface;
 use Lengbin\YiiDb\ActiveRecord\Model;
-use Yiisoft\Strings\Inflector;
 
 /**
  * UniqueValidator validates that the attribute value is unique in the specified database table.
@@ -190,10 +189,10 @@ class UniqueValidator extends Validator
                 // only select primary key to optimize query
                 $columnsCondition = array_flip($targetClass::primaryKey());
                 $query->select(array_flip($this->applyTableAlias($query, $columnsCondition)));
-                
+
                 // any with relation can't be loaded because related fields are not selected
                 $query->with = null;
-    
+
                 if (is_array($query->joinWith)) {
                     // any joinWiths need to have eagerLoading turned off to prevent related fields being loaded
                     foreach ($query->joinWith as &$joinWith) {
@@ -280,6 +279,26 @@ class UniqueValidator extends Validator
         return $this->applyTableAlias($targetModelClass::find(), $conditions);
     }
 
+    public function sentence(array $words, $twoWordsConnector = null, $lastWordConnector = null, $connector = ', ')
+    {
+        if ($twoWordsConnector === null) {
+            $twoWordsConnector = $this->formatMessage(' and ', [' and ' => ' 与 ']);
+        }
+        if ($lastWordConnector === null) {
+            $lastWordConnector = $twoWordsConnector;
+        }
+        switch (count($words)) {
+            case 0:
+                return '';
+            case 1:
+                return reset($words);
+            case 2:
+                return implode($twoWordsConnector, $words);
+            default:
+                return implode($connector, array_slice($words, 0, -1)) . $lastWordConnector . end($words);
+        }
+    }
+
     /**
      * Builds and adds [[comboNotUnique]] error message to the specified model attribute.
      * @param Model $model the data model.
@@ -299,7 +318,7 @@ class UniqueValidator extends Validator
             }
         }
         $this->addError($model, $attribute, $this->message, [
-            'attributes' => Inflector::sentence($attributeCombo),
+            'attributes' => $this->sentence($attributeCombo),
             'values' => implode('-', $valueCombo),
         ]);
     }

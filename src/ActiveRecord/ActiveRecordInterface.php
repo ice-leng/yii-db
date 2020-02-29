@@ -5,9 +5,9 @@
  * @license http://www.yiiframework.com/license/
  */
 
-namespace Lengbin\YiiDb\ActiveRecord;
+declare(strict_types=1);
 
-use Lengbin\YiiDb\StaticInstanceInterface;
+namespace Lengbin\YiiDb\ActiveRecord;
 
 /**
  * ActiveRecordInterface.
@@ -212,7 +212,7 @@ interface ActiveRecordInterface extends StaticInstanceInterface
      * ```
      *
      * @param mixed $condition primary key value or a set of column values
-     * @return static|null ActiveRecord instance matching the condition, or `null` if nothing matches.
+     * @return static ActiveRecord instance matching the condition, or `null` if nothing matches.
      */
     public static function findOne($condition);
 

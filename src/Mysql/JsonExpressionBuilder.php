@@ -5,15 +5,15 @@
  * @license http://www.yiiframework.com/license/
  */
 
-namespace Lengbin\YiiDb\Mysql;
+declare(strict_types=1);
 
+namespace Lengbin\YiiDb\Mysql;
 
 use Lengbin\YiiDb\ExpressionBuilderInterface;
 use Lengbin\YiiDb\ExpressionBuilderTrait;
 use Lengbin\YiiDb\ExpressionInterface;
 use Lengbin\YiiDb\JsonExpression;
-use Lengbin\YiiDb\Query\BaseQuery;
-use Yiisoft\Json\Json;
+use Lengbin\YiiDb\Query;
 
 /**
  * Class JsonExpressionBuilder builds [[JsonExpression]] for MySQL DBMS.
@@ -36,13 +36,13 @@ class JsonExpressionBuilder implements ExpressionBuilderInterface
     {
         $value = $expression->getValue();
 
-        if ($value instanceof BaseQuery) {
+        if ($value instanceof Query) {
             list ($sql, $params) = $this->queryBuilder->build($value, $params);
             return "($sql)";
         }
 
         $placeholder = static::PARAM_PREFIX . count($params);
-        $params[$placeholder] = Json::encode($value);
+        $params[$placeholder] = json_encode($value);
 
         return "CAST($placeholder AS JSON)";
     }

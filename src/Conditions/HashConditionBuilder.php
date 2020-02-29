@@ -1,23 +1,27 @@
 <?php
 /**
- * @link      http://www.yiiframework.com/
+ * @link http://www.yiiframework.com/
+ *
  * @copyright Copyright (c) 2008 Yii Software LLC
- * @license   http://www.yiiframework.com/license/
+ * @license http://www.yiiframework.com/license/
  */
+
+declare(strict_types=1);
 
 namespace Lengbin\YiiDb\Conditions;
 
+use Lengbin\Helper\YiiSoft\Arrays\ArrayHelper;
 use Lengbin\YiiDb\ExpressionBuilderInterface;
 use Lengbin\YiiDb\ExpressionBuilderTrait;
 use Lengbin\YiiDb\ExpressionInterface;
-use Lengbin\YiiDb\Query\BaseQuery;
-use Yiisoft\Arrays\ArrayHelper;
+use Lengbin\YiiDb\Query;
 
 /**
- * Class HashConditionBuilder builds objects of [[HashCondition]]
+ * Class HashConditionBuilder builds objects of [[HashCondition]].
  *
  * @author Dmytro Naumenko <d.naumenko.a@gmail.com>
- * @since  2.0.14
+ *
+ * @since 2.0.14
  */
 class HashConditionBuilder implements ExpressionBuilderInterface
 {
@@ -31,13 +35,17 @@ class HashConditionBuilder implements ExpressionBuilderInterface
      * @param array                             $params     the binding parameters.
      *
      * @return string the raw SQL that will not be additionally escaped or quoted.
+     * @throws \Lengbin\YiiDb\Exception\Exception
+     * @throws \Lengbin\YiiDb\Exception\InvalidConfigException
+     * @throws \Lengbin\YiiDb\Exception\NotSupportedException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     public function build(ExpressionInterface $expression, array &$params = [])
     {
         $hash = $expression->getHash();
         $parts = [];
         foreach ($hash as $column => $value) {
-            if (ArrayHelper::isTraversable($value) || $value instanceof BaseQuery) {
+            if (ArrayHelper::isTraversable($value) || $value instanceof Query) {
                 // IN condition
                 $parts[] = $this->queryBuilder->buildCondition(new InCondition($column, 'IN', $value), $params);
             } else {
@@ -47,7 +55,7 @@ class HashConditionBuilder implements ExpressionBuilderInterface
                 if ($value === null) {
                     $parts[] = "$column IS NULL";
                 } elseif ($value instanceof ExpressionInterface) {
-                    $parts[] = "$column=" . $this->queryBuilder->buildExpression($value, $params);
+                    $parts[] = "$column=".$this->queryBuilder->buildExpression($value, $params);
                 } else {
                     $phName = $this->queryBuilder->bindParam($value, $params);
                     $parts[] = "$column=$phName";
@@ -55,6 +63,6 @@ class HashConditionBuilder implements ExpressionBuilderInterface
             }
         }
 
-        return count($parts) === 1 ? $parts[0] : '(' . implode(') AND (', $parts) . ')';
+        return count($parts) === 1 ? $parts[0] : '('.implode(') AND (', $parts).')';
     }
 }

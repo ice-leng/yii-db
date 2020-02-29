@@ -1,12 +1,16 @@
 <?php
 /**
  * @link http://www.yiiframework.com/
+ *
  * @copyright Copyright (c) 2008 Yii Software LLC
  * @license http://www.yiiframework.com/license/
  */
 
+declare(strict_types=1);
+
 namespace Lengbin\YiiDb;
 
+use Lengbin\Helper\YiiSoft\ObjectHelper;
 use Lengbin\YiiDb\Exception\Exception;
 use Lengbin\YiiDb\Exception\InvalidConfigException;
 use Lengbin\YiiDb\Exception\NotSupportedException;
@@ -26,18 +30,11 @@ use Lengbin\YiiDb\Exception\NotSupportedException;
  *     $connection->createCommand($sql2)->execute();
  *     //.... other SQL executions
  *     $transaction->commit();
- * } catch (\Exception $e) {
- *     $transaction->rollBack();
- *     throw $e;
  * } catch (\Throwable $e) {
  *     $transaction->rollBack();
  *     throw $e;
  * }
  * ```
- *
- * > Note: in the above code we have two catch-blocks for compatibility
- * > with PHP 5.x and PHP 7.x. `\Exception` implements the [`\Throwable` interface](https://secure.php.net/manual/en/class.throwable.php)
- * > since PHP 7.0, so you can skip the part with `\Exception` if your app uses only PHP 7.0 and higher.
  *
  * @property bool $isActive Whether this transaction is active. Only an active transaction can [[commit()]] or
  * [[rollBack()]]. This property is read-only.
@@ -48,27 +45,32 @@ use Lengbin\YiiDb\Exception\NotSupportedException;
  * @property int $level The current nesting level of the transaction. This property is read-only.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
+ *
  * @since 2.0
  */
-class Transaction
+class Transaction extends ObjectHelper
 {
     /**
      * A constant representing the transaction isolation level `READ UNCOMMITTED`.
+     *
      * @see http://en.wikipedia.org/wiki/Isolation_%28database_systems%29#Isolation_levels
      */
     const READ_UNCOMMITTED = 'READ UNCOMMITTED';
     /**
      * A constant representing the transaction isolation level `READ COMMITTED`.
+     *
      * @see http://en.wikipedia.org/wiki/Isolation_%28database_systems%29#Isolation_levels
      */
     const READ_COMMITTED = 'READ COMMITTED';
     /**
      * A constant representing the transaction isolation level `REPEATABLE READ`.
+     *
      * @see http://en.wikipedia.org/wiki/Isolation_%28database_systems%29#Isolation_levels
      */
     const REPEATABLE_READ = 'REPEATABLE READ';
     /**
      * A constant representing the transaction isolation level `SERIALIZABLE`.
+     *
      * @see http://en.wikipedia.org/wiki/Isolation_%28database_systems%29#Isolation_levels
      */
     const SERIALIZABLE = 'SERIALIZABLE';
@@ -83,23 +85,29 @@ class Transaction
      */
     private $_level = 0;
 
+    public function __construct(Connection $db)
+    {
+        $this->db = $db;
+    }
 
     /**
      * Returns a value indicating whether this transaction is active.
+     *
      * @return bool whether this transaction is active. Only an active transaction
-     * can [[commit()]] or [[rollBack()]].
+     *              can [[commit()]] or [[rollBack()]].
      */
     public function getIsActive()
     {
-        return $this->_level > 0 && $this->db;
+        return $this->_level > 0 && $this->db && $this->db->isActive;
     }
 
     /**
      * Begins a transaction.
+     *
      * @param string|null $isolationLevel The [isolation level][] to use for this transaction.
-     * This can be one of [[READ_UNCOMMITTED]], [[READ_COMMITTED]], [[REPEATABLE_READ]] and [[SERIALIZABLE]] but
-     * also a string containing DBMS specific syntax to be used after `SET TRANSACTION ISOLATION LEVEL`.
-     * If not specified (`null`) the isolation level will not be set explicitly and the DBMS default will be used.
+     *                                    This can be one of [[READ_UNCOMMITTED]], [[READ_COMMITTED]], [[REPEATABLE_READ]] and [[SERIALIZABLE]] but
+     *                                    also a string containing DBMS specific syntax to be used after `SET TRANSACTION ISOLATION LEVEL`.
+     *                                    If not specified (`null`) the isolation level will not be set explicitly and the DBMS default will be used.
      *
      * > Note: This setting does not work for PostgreSQL, where setting the isolation level before the transaction
      * has no effect. You have to call [[setIsolationLevel()]] in this case after the transaction has started.
@@ -113,22 +121,26 @@ class Transaction
      *
      * Starting from version 2.0.16, this method throws exception when beginning nested transaction and underlying DBMS
      * does not support savepoints.
+     *
      * @throws InvalidConfigException if [[db]] is `null`
-     * @throws NotSupportedException if the DBMS does not support nested transactions
-     * @throws Exception if DB connection fails
+     * @throws NotSupportedException  if the DBMS does not support nested transactions
+     * @throws Exception              if DB connection fails
      */
     public function begin($isolationLevel = null)
     {
         if ($this->db === null) {
             throw new InvalidConfigException('Transaction::db must be set.');
         }
+        $this->db->open();
 
         if ($this->_level === 0) {
             if ($isolationLevel !== null) {
                 $this->db->getSchema()->setTransactionIsolationLevel($isolationLevel);
             }
+            $this->db->logger->debug(__METHOD__ . ' Begin transaction'.($isolationLevel ? ' with isolation level '.$isolationLevel : ''));
 
-            $this->db->getQuery()->beginTransaction();
+            $this->db->trigger(Connection::EVENT_BEGIN_TRANSACTION);
+            $this->db->pdo->beginTransaction();
             $this->_level = 1;
 
             return;
@@ -136,8 +148,11 @@ class Transaction
 
         $schema = $this->db->getSchema();
         if ($schema->supportsSavepoint()) {
-            $schema->createSavepoint('LEVEL' . $this->_level);
+            $this->db->logger->debug(__METHOD__ . ' Set savepoint '.$this->_level);
+            $schema->createSavepoint('LEVEL'.$this->_level);
         } else {
+            $this->db->logger->info(__METHOD__ . ' Transaction not started: nested transaction not supported');
+
             throw new NotSupportedException('Transaction not started: nested transaction not supported.');
         }
         $this->_level++;
@@ -145,6 +160,7 @@ class Transaction
 
     /**
      * Commits a transaction.
+     *
      * @throws Exception if the transaction is not active
      */
     public function commit()
@@ -155,13 +171,19 @@ class Transaction
 
         $this->_level--;
         if ($this->_level === 0) {
-            $this->db->getQuery()->commit();
+            $this->db->logger->debug(__METHOD__ . ' Commit transaction');
+            $this->db->pdo->commit();
+            $this->db->trigger(Connection::EVENT_COMMIT_TRANSACTION);
+
             return;
         }
 
         $schema = $this->db->getSchema();
         if ($schema->supportsSavepoint()) {
-            $schema->releaseSavepoint('LEVEL' . $this->_level);
+            $this->db->logger->debug(__METHOD__ . ' Release savepoint '.$this->_level);
+            $schema->releaseSavepoint('LEVEL'.$this->_level);
+        } else {
+            $this->db->logger->info(__METHOD__ . ' Transaction not committed: nested transaction not supported');
         }
     }
 
@@ -178,13 +200,19 @@ class Transaction
 
         $this->_level--;
         if ($this->_level === 0) {
-            $this->db->getQuery()->rollBack();
+            $this->db->logger->debug(__METHOD__ . ' Roll back transaction');
+            $this->db->pdo->rollBack();
+            $this->db->trigger(Connection::EVENT_ROLLBACK_TRANSACTION);
+
             return;
         }
 
         $schema = $this->db->getSchema();
         if ($schema->supportsSavepoint()) {
-            $schema->rollBackSavepoint('LEVEL' . $this->_level);
+            $this->db->logger->debug(__METHOD__ . ' Roll back to savepoint '.$this->_level);
+            $schema->rollBackSavepoint('LEVEL'.$this->_level);
+        } else {
+            $this->db->logger->info(__METHOD__ . ' Transaction not rolled back: nested transaction not supported');
         }
     }
 
@@ -194,10 +222,13 @@ class Transaction
      * This method can be used to set the isolation level while the transaction is already active.
      * However this is not supported by all DBMS so you might rather specify the isolation level directly
      * when calling [[begin()]].
+     *
      * @param string $level The transaction isolation level to use for this transaction.
-     * This can be one of [[READ_UNCOMMITTED]], [[READ_COMMITTED]], [[REPEATABLE_READ]] and [[SERIALIZABLE]] but
-     * also a string containing DBMS specific syntax to be used after `SET TRANSACTION ISOLATION LEVEL`.
+     *                      This can be one of [[READ_UNCOMMITTED]], [[READ_COMMITTED]], [[REPEATABLE_READ]] and [[SERIALIZABLE]] but
+     *                      also a string containing DBMS specific syntax to be used after `SET TRANSACTION ISOLATION LEVEL`.
+     *
      * @throws Exception if the transaction is not active
+     *
      * @see http://en.wikipedia.org/wiki/Isolation_%28database_systems%29#Isolation_levels
      */
     public function setIsolationLevel($level)
@@ -205,11 +236,13 @@ class Transaction
         if (!$this->getIsActive()) {
             throw new Exception('Failed to set isolation level: transaction was inactive.');
         }
+        $this->db->logger->debug(__METHOD__ . ' Setting transaction isolation level to '.$level);
         $this->db->getSchema()->setTransactionIsolationLevel($level);
     }
 
     /**
      * @return int The current nesting level of the transaction.
+     *
      * @since 2.0.8
      */
     public function getLevel()

@@ -5,13 +5,15 @@
  * @license http://www.yiiframework.com/license/
  */
 
+declare(strict_types=1);
+
 namespace Lengbin\YiiDb\Mysql;
 
 use Lengbin\YiiDb\Exception\Exception;
 use Lengbin\YiiDb\Exception\InvalidArgumentException;
 use Lengbin\YiiDb\Exception\NotSupportedException;
 use Lengbin\YiiDb\Expression;
-use Lengbin\YiiDb\Query\BaseQuery;
+use Lengbin\YiiDb\Query;
 
 /**
  * QueryBuilder is the query builder for MySQL databases.
@@ -19,7 +21,7 @@ use Lengbin\YiiDb\Query\BaseQuery;
  * @author Qiang Xue <qiang.xue@gmail.com>
  * @since 2.0
  */
-class QueryBuilder extends \Lengbin\YiiDb\Query\QueryBuilder
+class QueryBuilder extends \Lengbin\YiiDb\QueryBuilder
 {
     /**
      * @var array mapping from abstract column types (keys) to physical column types (values).
@@ -69,17 +71,22 @@ class QueryBuilder extends \Lengbin\YiiDb\Query\QueryBuilder
 
     /**
      * Builds a SQL statement for renaming a column.
-     * @param string $table the table whose column is to be renamed. The name will be properly quoted by the method.
+     *
+     * @param string $table   the table whose column is to be renamed. The name will be properly quoted by the method.
      * @param string $oldName the old name of the column. The name will be properly quoted by the method.
      * @param string $newName the new name of the column. The name will be properly quoted by the method.
+     *
      * @return string the SQL statement for renaming a DB column.
-     * @throws Exception
+     * @throws \Lengbin\YiiDb\Exception\Exception
+     * @throws \Lengbin\YiiDb\Exception\InvalidConfigException
+     * @throws \Lengbin\YiiDb\Exception\NotSupportedException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \Throwable
      */
     public function renameColumn($table, $oldName, $newName)
     {
         $quotedTable = $this->db->quoteTableName($table);
-        $showSql = 'SHOW CREATE TABLE ' . $quotedTable;
-        $row = $this->db->getQuery()->queryOne($showSql);
+        $row = $this->db->createCommand('SHOW CREATE TABLE ' . $quotedTable)->queryOne();
         if ($row === false) {
             throw new Exception("Unable to find column '$oldName' in table '$table'.");
         }
@@ -120,9 +127,15 @@ class QueryBuilder extends \Lengbin\YiiDb\Query\QueryBuilder
 
     /**
      * Builds a SQL statement for dropping a foreign key constraint.
-     * @param string $name the name of the foreign key constraint to be dropped. The name will be properly quoted by the method.
+     *
+     * @param string $name  the name of the foreign key constraint to be dropped. The name will be properly quoted by the method.
      * @param string $table the table whose foreign is to be dropped. The name will be properly quoted by the method.
+     *
      * @return string the SQL statement for dropping a foreign key constraint.
+     * @throws Exception
+     * @throws \Lengbin\YiiDb\Exception\InvalidConfigException
+     * @throws \Lengbin\YiiDb\Exception\NotSupportedException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     public function dropForeignKey($name, $table)
     {
@@ -132,9 +145,15 @@ class QueryBuilder extends \Lengbin\YiiDb\Query\QueryBuilder
 
     /**
      * Builds a SQL statement for removing a primary key constraint to an existing table.
-     * @param string $name the name of the primary key constraint to be removed.
+     *
+     * @param string $name  the name of the primary key constraint to be removed.
      * @param string $table the table that the primary key constraint will be removed from.
+     *
      * @return string the SQL statement for removing a primary key constraint from an existing table.
+     * @throws Exception
+     * @throws \Lengbin\YiiDb\Exception\InvalidConfigException
+     * @throws \Lengbin\YiiDb\Exception\NotSupportedException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     public function dropPrimaryKey($name, $table)
     {
@@ -171,11 +190,18 @@ class QueryBuilder extends \Lengbin\YiiDb\Query\QueryBuilder
      * Creates a SQL statement for resetting the sequence value of a table's primary key.
      * The sequence will be reset such that the primary key of the next new row inserted
      * will have the specified value or 1.
+     *
      * @param string $tableName the name of the table whose primary key sequence will be reset
-     * @param mixed $value the value for the primary key of the next new row inserted. If this is not set,
-     * the next new row's primary key will have a value 1.
+     * @param mixed  $value     the value for the primary key of the next new row inserted. If this is not set,
+     *                          the next new row's primary key will have a value 1.
+     *
      * @return string the SQL statement for resetting sequence
+     * @throws Exception
      * @throws InvalidArgumentException if the table does not exist or there is no sequence associated with the table.
+     * @throws NotSupportedException
+     * @throws \Lengbin\YiiDb\Exception\InvalidConfigException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \Throwable
      */
     public function resetSequence($tableName, $value = null)
     {
@@ -184,8 +210,7 @@ class QueryBuilder extends \Lengbin\YiiDb\Query\QueryBuilder
             $tableName = $this->db->quoteTableName($tableName);
             if ($value === null) {
                 $key = reset($table->primaryKey);
-                $sql = "SELECT MAX(`$key`) FROM $tableName";
-                $value = $this->db->getQuery()->scalar($sql) + 1;
+                $value = $this->db->createCommand("SELECT MAX(`$key`) FROM $tableName")->queryScalar() + 1;
             } else {
                 $value = (int) $value;
             }
@@ -256,7 +281,7 @@ class QueryBuilder extends \Lengbin\YiiDb\Query\QueryBuilder
     protected function prepareInsertValues($table, $columns, $params = [])
     {
         list($names, $placeholders, $values, $params) = parent::prepareInsertValues($table, $columns, $params);
-        if (!$columns instanceof BaseQuery && empty($names)) {
+        if (!$columns instanceof Query && empty($names)) {
             $tableSchema = $this->db->getSchema()->getTableSchema($table);
             if ($tableSchema !== null) {
                 $columns = !empty($tableSchema->primaryKey) ? $tableSchema->primaryKey : [reset($tableSchema->columns)->name];
@@ -363,7 +388,7 @@ class QueryBuilder extends \Lengbin\YiiDb\Query\QueryBuilder
     private function getColumnDefinition($table, $column)
     {
         $quotedTable = $this->db->quoteTableName($table);
-        $row = $this->db->getQuery()->queryOne('SHOW CREATE TABLE ' . $quotedTable);
+        $row = $this->db->createCommand('SHOW CREATE TABLE ' . $quotedTable)->queryOne();
         if ($row === false) {
             throw new Exception("Unable to find column '$column' in table '$table'.");
         }
@@ -392,8 +417,7 @@ class QueryBuilder extends \Lengbin\YiiDb\Query\QueryBuilder
      */
     private function supportsFractionalSeconds()
     {
-//        $version = $this->db->getSlavePdo()->getAttribute(\PDO::ATTR_SERVER_VERSION);
-        $version = $this->db->getQuery()->scalar('select version()');
+        $version = $this->db->getSlavePdo()->getAttribute(\PDO::ATTR_SERVER_VERSION);
         return version_compare($version, '5.6.4', '>=');
     }
 

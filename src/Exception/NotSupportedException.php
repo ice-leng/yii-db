@@ -1,7 +1,21 @@
 <?php
 
+/**
+ * @link http://www.yiiframework.com/
+ * @copyright Copyright (c) 2008 Yii Software LLC
+ * @license http://www.yiiframework.com/license/
+ */
+
+declare(strict_types=1);
+
 namespace Lengbin\YiiDb\Exception;
 
+/**
+ * NotSupportedException represents an exception caused by accessing features that are not supported.
+ *
+ * @author Qiang Xue <qiang.xue@gmail.com>
+ * @since 2.0
+ */
 class NotSupportedException extends Exception
 {
     /**
@@ -9,6 +23,6 @@ class NotSupportedException extends Exception
      */
     public function getName()
     {
-        return 'Not Supported Exception';
+        return 'Not Supported';
     }
 }

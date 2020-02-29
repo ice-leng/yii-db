@@ -13,7 +13,7 @@ use Lengbin\YiiDb\ActiveRecord\ActiveRecord;
 use Lengbin\YiiDb\ActiveRecord\ActiveRecordInterface;
 use Lengbin\YiiDb\ActiveRecord\Model;
 use Lengbin\YiiDb\Exception\InvalidConfigException;
-use Lengbin\YiiDb\Query\QueryInterface;
+use Lengbin\YiiDb\QueryInterface;
 
 /**
  * ExistValidator validates that the attribute value exists in a table.

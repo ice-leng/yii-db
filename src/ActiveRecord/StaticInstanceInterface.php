@@ -5,7 +5,7 @@
  * @license http://www.yiiframework.com/license/
  */
 
-namespace Lengbin\YiiDb;
+namespace Lengbin\YiiDb\ActiveRecord;
 
 /**
  * StaticInstanceInterface is the interface for providing static instances to classes,

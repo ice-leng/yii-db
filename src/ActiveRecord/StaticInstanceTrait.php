@@ -5,9 +5,7 @@
  * @license http://www.yiiframework.com/license/
  */
 
-namespace Lengbin\YiiDb;
-
-use Yii;
+namespace Lengbin\YiiDb\ActiveRecord;
 
 /**
  * StaticInstanceTrait provides methods to satisfy [[StaticInstanceInterface]] interface.
@@ -34,7 +32,7 @@ trait StaticInstanceTrait
     {
         $className = get_called_class();
         if ($refresh || !isset(self::$_instances[$className])) {
-            self::$_instances[$className] = new $className();
+            self::$_instances[$className] = new $className;
         }
         return self::$_instances[$className];
     }

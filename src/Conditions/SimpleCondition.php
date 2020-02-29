@@ -1,9 +1,12 @@
 <?php
 /**
  * @link http://www.yiiframework.com/
+ *
  * @copyright Copyright (c) 2008 Yii Software LLC
  * @license http://www.yiiframework.com/license/
  */
+
+declare(strict_types=1);
 
 namespace Lengbin\YiiDb\Conditions;
 
@@ -13,12 +16,13 @@ use Lengbin\YiiDb\Exception\InvalidArgumentException;
  * Class SimpleCondition represents a simple condition like `"column" operator value`.
  *
  * @author Dmytro Naumenko <d.naumenko.a@gmail.com>
+ *
  * @since 2.0.14
  */
 class SimpleCondition implements ConditionInterface
 {
     /**
-     * @var string $operator the operator to use. Anything could be used e.g. `>`, `<=`, etc.
+     * @var string the operator to use. Anything could be used e.g. `>`, `<=`, etc.
      */
     private $operator;
     /**
@@ -30,13 +34,12 @@ class SimpleCondition implements ConditionInterface
      */
     private $value;
 
-
     /**
-     * SimpleCondition constructor
+     * SimpleCondition constructor.
      *
-     * @param mixed $column the literal to the left of $operator
+     * @param mixed  $column   the literal to the left of $operator
      * @param string $operator the operator to use. Anything could be used e.g. `>`, `<=`, etc.
-     * @param mixed $value the literal to the right of $operator
+     * @param mixed  $value    the literal to the right of $operator
      */
     public function __construct($column, $operator, $value)
     {
@@ -71,6 +74,7 @@ class SimpleCondition implements ConditionInterface
 
     /**
      * {@inheritdoc}
+     *
      * @throws InvalidArgumentException if wrong number of operands have been given.
      */
     public static function fromArrayDefinition($operator, $operands)

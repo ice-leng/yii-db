@@ -1,9 +1,12 @@
 <?php
 /**
  * @link http://www.yiiframework.com/
+ *
  * @copyright Copyright (c) 2008 Yii Software LLC
  * @license http://www.yiiframework.com/license/
  */
+
+declare(strict_types=1);
 
 namespace Lengbin\YiiDb;
 
@@ -16,10 +19,12 @@ namespace Lengbin\YiiDb;
  * [':name' => 'John', ':profile' => new PdoValue($profile, \PDO::PARAM_LOB)]`.
  * ```
  *
- * To see possible types, check [PDO::PARAM_* constants](https://secure.php.net/manual/en/pdo.constants.php).
+ * To see possible types, check [PDO::PARAM_* constants](http://php.net/manual/en/pdo.constants.php).
  *
- * @see https://secure.php.net/manual/en/pdostatement.bindparam.php
+ * @see http://php.net/manual/en/pdostatement.bindparam.php
+ *
  * @author Dmytro Naumenko <d.naumenko.a@gmail.com>
+ *
  * @since 2.0.14
  */
 final class PdoValue implements ExpressionInterface
@@ -30,10 +35,10 @@ final class PdoValue implements ExpressionInterface
     private $value;
     /**
      * @var int One of PDO_PARAM_* constants
-     * @see https://secure.php.net/manual/en/pdo.constants.php
+     *
+     * @see http://php.net/manual/en/pdo.constants.php
      */
     private $type;
-
 
     /**
      * PdoValue constructor.

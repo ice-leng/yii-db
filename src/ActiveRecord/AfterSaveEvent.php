@@ -5,7 +5,11 @@
  * @license http://www.yiiframework.com/license/
  */
 
-namespace Lengbin\YiiDb\Event;
+declare(strict_types=1);
+
+namespace Lengbin\YiiDb\ActiveRecord;
+
+use Lengbin\YiiDb\Event;
 
 /**
  * AfterSaveEvent represents the information available in [[ActiveRecord::EVENT_AFTER_INSERT]] and [[ActiveRecord::EVENT_AFTER_UPDATE]].
@@ -19,4 +23,5 @@ class AfterSaveEvent extends Event
      * @var array The attribute values that had changed and were saved.
      */
     public $changedAttributes;
+
 }

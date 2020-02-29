@@ -1,39 +1,41 @@
 <?php
 /**
  * @link http://www.yiiframework.com/
+ *
  * @copyright Copyright (c) 2008 Yii Software LLC
  * @license http://www.yiiframework.com/license/
  */
 
+declare(strict_types=1);
+
 namespace Lengbin\YiiDb\Conditions;
 
-
 use Lengbin\YiiDb\Exception\InvalidArgumentException;
-use Lengbin\YiiDb\Query\BaseQuery;
+use Lengbin\YiiDb\Query;
 
 /**
  * Condition that represents `EXISTS` operator.
  *
  * @author Dmytro Naumenko <d.naumenko.a@gmail.com>
+ *
  * @since 2.0.14
  */
 class ExistsCondition implements ConditionInterface
 {
     /**
-     * @var string $operator the operator to use (e.g. `EXISTS` or `NOT EXISTS`)
+     * @var string the operator to use (e.g. `EXISTS` or `NOT EXISTS`)
      */
     private $operator;
     /**
-     * @var BaseQuery the [[Query]] object representing the sub-query.
+     * @var Query the [[Query]] object representing the sub-query.
      */
     private $query;
-
 
     /**
      * ExistsCondition constructor.
      *
      * @param string $operator the operator to use (e.g. `EXISTS` or `NOT EXISTS`)
-     * @param BaseQuery $query the [[Query]] object representing the sub-query.
+     * @param Query  $query    the [[Query]] object representing the sub-query.
      */
     public function __construct($operator, $query)
     {
@@ -46,7 +48,7 @@ class ExistsCondition implements ConditionInterface
      */
     public static function fromArrayDefinition($operator, $operands)
     {
-        if (!isset($operands[0]) || !$operands[0] instanceof BaseQuery) {
+        if (!isset($operands[0]) || !$operands[0] instanceof Query) {
             throw new InvalidArgumentException('Subquery for EXISTS operator must be a Query object.');
         }
 
@@ -62,7 +64,7 @@ class ExistsCondition implements ConditionInterface
     }
 
     /**
-     * @return BaseQuery
+     * @return Query
      */
     public function getQuery()
     {

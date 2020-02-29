@@ -5,9 +5,10 @@
  * @license http://www.yiiframework.com/license/
  */
 
-namespace Lengbin\YiiDb\Event;
+namespace Lengbin\YiiDb;
 
-use Yiisoft\Strings\StringHelper;
+use Lengbin\Helper\YiiSoft\ObjectHelper;
+use Lengbin\Helper\YiiSoft\StringHelper;
 
 /**
  * Event is the base class for all event classes.
@@ -26,7 +27,7 @@ use Yiisoft\Strings\StringHelper;
  * @author Qiang Xue <qiang.xue@gmail.com>
  * @since 2.0
  */
-class Event
+class Event extends ObjectHelper
 {
     /**
      * @var string the event name. This property is set by [[Component::trigger()]] and [[trigger()]].

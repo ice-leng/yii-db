@@ -1,11 +1,16 @@
 <?php
 /**
  * @link http://www.yiiframework.com/
+ *
  * @copyright Copyright (c) 2008 Yii Software LLC
  * @license http://www.yiiframework.com/license/
  */
 
+declare(strict_types=1);
+
 namespace Lengbin\YiiDb;
+
+use Lengbin\Helper\YiiSoft\ObjectHelper;
 
 /**
  * Expression represents a DB expression that does not need escaping or quoting.
@@ -16,7 +21,7 @@ namespace Lengbin\YiiDb;
  *
  * ```php
  * $expression = new Expression('NOW()');
- * $now = (new \yii\db\Query)->select($expression)->scalar();  // SELECT NOW();
+ * $now = (new \Yiisoft\Db\Query)->select($expression)->scalar();  // SELECT NOW();
  * echo $now; // prints the current date
  * ```
  *
@@ -26,9 +31,10 @@ namespace Lengbin\YiiDb;
  * An expression can also be bound with parameters specified via [[params]].
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
+ *
  * @since 2.0
  */
-class Expression implements ExpressionInterface
+class Expression extends ObjectHelper implements ExpressionInterface
 {
     /**
      * @var string the DB expression
@@ -36,16 +42,17 @@ class Expression implements ExpressionInterface
     public $expression;
     /**
      * @var array list of parameters that should be bound for this expression.
-     * The keys are placeholders appearing in [[expression]] and the values
-     * are the corresponding parameter values.
+     *            The keys are placeholders appearing in [[expression]] and the values
+     *            are the corresponding parameter values.
      */
     public $params = [];
 
-
     /**
      * Constructor.
+     *
      * @param string $expression the DB expression
-     * @param array $params parameters
+     * @param array  $params     parameters
+     * @param array  $config     name-value pairs that will be used to initialize the object properties
      */
     public function __construct($expression, $params = [])
     {
@@ -55,6 +62,7 @@ class Expression implements ExpressionInterface
 
     /**
      * String magic method.
+     *
      * @return string the DB expression.
      */
     public function __toString()

@@ -7,8 +7,8 @@
 
 namespace Lengbin\YiiDb\Validators;
 
+use Lengbin\Helper\YiiSoft\Arrays\ArrayHelper;
 use Lengbin\YiiDb\Exception\InvalidConfigException;
-use Yiisoft\Arrays\ArrayHelper;
 
 /**
  * RangeValidator validates that the attribute value is among a list of values.

@@ -5,9 +5,11 @@
  * @license http://www.yiiframework.com/license/
  */
 
+declare(strict_types=1);
+
 namespace Lengbin\YiiDb\ActiveRecord;
 
-use Yiisoft\Arrays\ArrayHelper;
+use Lengbin\Helper\YiiSoft\Arrays\ArrayHelper;
 
 /**
  * ArrayableTrait provides a common implementation of the [[Arrayable]] interface.
@@ -67,7 +69,8 @@ trait ArrayableTrait
      */
     public function fields()
     {
-        $fields = array_keys(get_object_vars($this));
+        $vars = get_object_vars($this);;
+        $fields = array_keys($vars);
         return array_combine($fields, $fields);
     }
 
@@ -140,10 +143,6 @@ trait ArrayableTrait
                 }
             }
             $data[$field] = $attribute;
-        }
-
-        if ($this instanceof Linkable) {
-            $data['_links'] = Link::serialize($this->getLinks());
         }
 
         return $recursive ? ArrayHelper::toArray($data) : $data;

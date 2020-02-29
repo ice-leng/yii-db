@@ -1,20 +1,24 @@
 <?php
 /**
  * @link      http://www.yiiframework.com/
+ *
  * @copyright Copyright (c) 2008 Yii Software LLC
  * @license   http://www.yiiframework.com/license/
  */
 
+declare(strict_types=1);
+
 namespace Lengbin\YiiDb\Conditions;
 
-use Lengbin\YiiDb\ExpressionInterface;
 use Lengbin\YiiDb\Exception\InvalidArgumentException;
+use Lengbin\YiiDb\ExpressionInterface;
 
 /**
  * Interface ConditionInterface should be implemented by classes that represent a condition
  * in DBAL of framework.
  *
  * @author Dmytro Naumenko <d.naumenko.a@gmail.com>
+ *
  * @since  2.0.14
  */
 interface ConditionInterface extends ExpressionInterface
@@ -28,6 +32,7 @@ interface ConditionInterface extends ExpressionInterface
      *
      * @return $this
      * @throws InvalidArgumentException if input parameters are not suitable for this condition
+     *
      */
     public static function fromArrayDefinition($operator, $operands);
 }

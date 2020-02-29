@@ -1,15 +1,18 @@
 <?php
 /**
- * @link      http://www.yiiframework.com/
+ * @link http://www.yiiframework.com/
  * @copyright Copyright (c) 2008 Yii Software LLC
- * @license   http://www.yiiframework.com/license/
+ * @license http://www.yiiframework.com/license/
  */
+
+declare(strict_types=1);
 
 namespace Lengbin\YiiDb\ActiveRecord;
 
+use Lengbin\YiiDb\Command;
+use Lengbin\YiiDb\ConnectionInterface;
+use Lengbin\YiiDb\Query;
 use Lengbin\YiiDb\Exception\InvalidConfigException;
-use Lengbin\YiiDb\Query\BaseQuery;
-
 
 /**
  * ActiveQuery represents a DB query associated with an Active Record class.
@@ -70,17 +73,12 @@ use Lengbin\YiiDb\Query\BaseQuery;
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
  * @author Carsten Brandt <mail@cebe.cc>
- * @since  2.0
+ * @since 2.0
  */
-class ActiveQuery extends BaseQuery implements ActiveQueryInterface
+class ActiveQuery extends Query implements ActiveQueryInterface
 {
     use ActiveQueryTrait;
     use ActiveRelationTrait;
-
-    /**
-     * @event Event an event that is triggered when the query is initialized via [[init()]].
-     */
-    const EVENT_INIT = 'init';
 
     /**
      * @var string the SQL statement to be executed for retrieving AR records.
@@ -100,25 +98,29 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
      */
     public $joinWith;
 
+
     /**
      * Constructor.
-     *
      * @param string $modelClass the model class associated with this query
-     * @param array  $config     configurations to be applied to the newly created query object
      */
-    public function __construct($modelClass)
+    public function __construct($modelClass, array $config = [])
     {
         $this->modelClass = $modelClass;
+
+        if (!empty($config)) {
+            $this->configure($this, $config);
+        }
     }
 
     /**
      * Executes query and returns all results as an array.
+     * @param ConnectionInterface $db the DB connection used to create the DB command.
      * If null, the DB connection returned by [[modelClass]] will be used.
      * @return array|ActiveRecord[] the query results. If the query results in nothing, an empty array will be returned.
      */
-    public function all()
+    public function all($db = null)
     {
-        return parent::all();
+        return parent::all($db);
     }
 
     /**
@@ -140,13 +142,13 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
         }
 
         if (empty($this->select) && !empty($this->join)) {
-            list(, $alias) = $this->getTableNameAndAlias();
+            [, $alias] = $this->getTableNameAndAlias();
             $this->select = ["$alias.*"];
         }
 
         if ($this->primaryModel === null) {
             // eager loading
-            $query = BaseQuery::create($this);
+            $query = Query::create($this);
         } else {
             // lazy loading of a relation
             $where = $this->where;
@@ -158,25 +160,13 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
             } elseif (is_array($this->via)) {
                 // via relation
                 /* @var $viaQuery ActiveQuery */
-                list($viaName, $viaQuery, $viaCallableUsed) = $this->via;
+                [$viaName, $viaQuery] = $this->via;
                 if ($viaQuery->multiple) {
-                    if ($viaCallableUsed) {
-                        $viaModels = $viaQuery->all();
-                    } elseif ($this->primaryModel->isRelationPopulated($viaName)) {
-                        $viaModels = $this->primaryModel->$viaName;
-                    } else {
-                        $viaModels = $viaQuery->all();
-                        $this->primaryModel->populateRelation($viaName, $viaModels);
-                    }
+                    $viaModels = $viaQuery->all();
+                    $this->primaryModel->populateRelation($viaName, $viaModels);
                 } else {
-                    if ($viaCallableUsed) {
-                        $model = $viaQuery->one();
-                    } elseif ($this->primaryModel->isRelationPopulated($viaName)) {
-                        $model = $this->primaryModel->$viaName;
-                    } else {
-                        $model = $viaQuery->one();
-                        $this->primaryModel->populateRelation($viaName, $model);
-                    }
+                    $model = $viaQuery->one();
+                    $this->primaryModel->populateRelation($viaName, $model);
                     $viaModels = $model === null ? [] : [$model];
                 }
                 $this->filterByModels($viaModels);
@@ -184,7 +174,7 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
                 $this->filterByModels([$this->primaryModel]);
             }
 
-            $query = BaseQuery::create($this);
+            $query = Query::create($this);
             $this->where = $where;
         }
 
@@ -203,6 +193,7 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
         if (empty($rows)) {
             return [];
         }
+
         $models = $this->createModels($rows);
         if (!empty($this->join) && $this->indexBy === null) {
             $models = $this->removeDuplicatedModels($models);
@@ -229,9 +220,8 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
      * This method is mainly called when a join query is performed, which may cause duplicated rows being returned.
      *
      * @param array $models the models to be checked
-     *
-     * @return array the distinctive models
      * @throws InvalidConfigException if model primary key is empty
+     * @return array the distinctive models
      */
     private function removeDuplicatedModels($models)
     {
@@ -282,15 +272,15 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
 
     /**
      * Executes query and returns a single row of result.
+     * @param ConnectionInterface|null $db the DB connection used to create the DB command.
      * If `null`, the DB connection returned by [[modelClass]] will be used.
      * @return ActiveRecord|array|null a single row of query result. Depending on the setting of [[asArray]],
      * the query result may be either an array or an ActiveRecord object. `null` will be returned
      * if the query results in nothing.
      */
-    public function one()
+    public function one($db = null)
     {
-        list($sql, $params) = $this->buildSql();
-        $row = $this->queryOne($sql, $params);
+        $row = parent::one($db);
         if ($row !== false) {
             $models = $this->populate([$row]);
             return reset($models) ?: null;
@@ -299,58 +289,55 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
         return null;
     }
 
-    public function query(string $sql, array $params = [])
-    {
-        /* @var $modelClass ActiveRecord */
-        $modelClass = $this->modelClass;
-        /* @var $db BaseQuery */
-        $db = $modelClass::getDb();
-        return $db->query($sql, $params);
-    }
-
-    public function queryOne(string $sql, array $params = [])
-    {
-        /* @var $modelClass ActiveRecord */
-        $modelClass = $this->modelClass;
-        /* @var $db BaseQuery */
-        $db = $modelClass::getDb();
-        return $db->queryOne($sql, $params);
-    }
-
     /**
      * Creates a DB command that can be used to execute this query.
+     * @param ConnectionInterface|null $db the DB connection used to create the DB command.
      * If `null`, the DB connection returned by [[modelClass]] will be used.
-     * @return array
+     * @return Command the created DB command instance.
      */
-    public function buildSql()
+    public function createCommand($db = null)
     {
         /* @var $modelClass ActiveRecord */
         $modelClass = $this->modelClass;
-        /* @var $db BaseQuery */
-        $db = $modelClass::getDb();
+        if ($db === null) {
+            $db = $modelClass::getDb();
+        }
 
         if ($this->sql === null) {
-            list($sql, $params) = $db->getConnect()->getQueryBuilder()->build($this);
+            [$sql, $params] = $db->getQueryBuilder()->build($this);
         } else {
             $sql = $this->sql;
             $params = $this->params;
         }
-        return [$sql, $params];
+
+        $command = $db->createCommand($sql, $params);
+        $this->setCommandCache($command);
+
+        return $command;
     }
 
     /**
      * {@inheritdoc}
      */
-    public function queryScalar($selectExpression)
+    protected function queryScalar($selectExpression, $db)
     {
-        if ($this->sql === null) {
-            return parent::queryScalar($selectExpression);
+        /* @var $modelClass ActiveRecord */
+        $modelClass = $this->modelClass;
+        if ($db === null) {
+            $db = $modelClass::getDb();
         }
-        $query = (new BaseQuery())->select([$selectExpression])
+
+        if ($this->sql === null) {
+            return parent::queryScalar($selectExpression, $db);
+        }
+
+        $command = (new Query())->select([$selectExpression])
             ->from(['c' => "({$this->sql})"])
-            ->params($this->params);
-        list($sql, $params) = $query->buildSql();
-        return $this->scalar($sql, $params);
+            ->params($this->params)
+            ->createCommand($db);
+        $this->setCommandCache($command);
+
+        return $command->queryScalar();
     }
 
     /**
@@ -368,8 +355,8 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
      * This method differs from [[with()]] in that it will build up and execute a JOIN SQL statement
      * for the primary table. And when `$eagerLoading` is true, it will call [[with()]] in addition with the specified relations.
      *
-     * @param string|array $with         the relations to be joined. This can either be a string, representing a relation name or
-     *                                   an array with the following semantics:
+     * @param string|array $with the relations to be joined. This can either be a string, representing a relation name or
+     * an array with the following semantics:
      *
      * - Each array element represents a single relation.
      * - You may specify the relation name as the array key and provide an anonymous functions that
@@ -387,7 +374,7 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
      * Order::find()->joinWith('books', true, 'INNER JOIN')->all();
      * // find all orders, eager loading "books", and sort the orders and books by the book names.
      * Order::find()->joinWith([
-     *     'books' => function (\yii\db\ActiveQuery $query) {
+     *     'books' => function (\Yiisoft\ActiveRecord\ActiveQuery $query) {
      *         $query->orderBy('item.name');
      *     }
      * ])->all();
@@ -397,23 +384,22 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
      *
      * The alias syntax is available since version 2.0.7.
      *
-     * @param bool|array   $eagerLoading whether to eager load the relations
-     *                                   specified in `$with`.  When this is a boolean, it applies to all
-     *                                   relations specified in `$with`. Use an array to explicitly list which
-     *                                   relations in `$with` need to be eagerly loaded.  Note, that this does
-     *                                   not mean, that the relations are populated from the query result. An
-     *                                   extra query will still be performed to bring in the related data.
-     *                                   Defaults to `true`.
-     * @param string|array $joinType     the join type of the relations specified in `$with`.
-     *                                   When this is a string, it applies to all relations specified in `$with`. Use an array
-     *                                   in the format of `relationName => joinType` to specify different join types for different relations.
-     *
+     * @param bool|array $eagerLoading whether to eager load the relations
+     * specified in `$with`.  When this is a boolean, it applies to all
+     * relations specified in `$with`. Use an array to explicitly list which
+     * relations in `$with` need to be eagerly loaded.  Note, that this does
+     * not mean, that the relations are populated from the query result. An
+     * extra query will still be performed to bring in the related data.
+     * Defaults to `true`.
+     * @param string|array $joinType the join type of the relations specified in `$with`.
+     * When this is a string, it applies to all relations specified in `$with`. Use an array
+     * in the format of `relationName => joinType` to specify different join types for different relations.
      * @return $this the query object itself
      */
     public function joinWith($with, $eagerLoading = true, $joinType = 'LEFT JOIN')
     {
         $relations = [];
-        foreach ((array)$with as $name => $callback) {
+        foreach ((array) $with as $name => $callback) {
             if (is_int($name)) {
                 $name = $callback;
                 $callback = null;
@@ -421,7 +407,7 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
 
             if (preg_match('/^(.*?)(?:\s+AS\s+|\s+)(\w+)$/i', $name, $matches)) {
                 // relation is defined with an alias, adjust callback to apply alias
-                list(, $relation, $alias) = $matches;
+                [, $relation, $alias] = $matches;
                 $name = $relation;
                 $callback = function ($query) use ($callback, $alias) {
                     /* @var $query ActiveQuery */
@@ -450,8 +436,7 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
         /* @var $modelClass ActiveRecordInterface */
         $modelClass = $this->modelClass;
         $model = $modelClass::instance();
-        foreach ($this->joinWith as $config) {
-            list($with, $eagerLoading, $joinType) = $config;
+        foreach ($this->joinWith as [$with, $eagerLoading, $joinType]) {
             $this->joinWithRelations($model, $with, $joinType);
 
             if (is_array($eagerLoading)) {
@@ -490,13 +475,11 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
      * Inner joins with the specified relations.
      * This is a shortcut method to [[joinWith()]] with the join type set as "INNER JOIN".
      * Please refer to [[joinWith()]] for detailed usage of this method.
-     *
-     * @param string|array $with         the relations to be joined with.
-     * @param bool|array   $eagerLoading whether to eager load the relations.
-     *                                   Note, that this does not mean, that the relations are populated from the
-     *                                   query result. An extra query will still be performed to bring in the
-     *                                   related data.
-     *
+     * @param string|array $with the relations to be joined with.
+     * @param bool|array $eagerLoading whether to eager load the relations.
+     * Note, that this does not mean, that the relations are populated from the
+     * query result. An extra query will still be performed to bring in the
+     * related data.
      * @return $this the query object itself
      * @see joinWith()
      */
@@ -507,9 +490,8 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
 
     /**
      * Modifies the current query by adding join fragments based on the given relations.
-     *
-     * @param ActiveRecord $model    the primary model
-     * @param array        $with     the relations to be joined
+     * @param ActiveRecord $model the primary model
+     * @param array $with the relations to be joined
      * @param string|array $joinType the join type
      */
     private function joinWithRelations($model, $with, $joinType)
@@ -559,10 +541,8 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
 
     /**
      * Returns the join type based on the given join type parameter and the relation name.
-     *
      * @param string|array $joinType the given join type(s)
-     * @param string       $name     relation name
-     *
+     * @param string $name relation name
      * @return string the real join type
      */
     private function getJoinType($joinType, $name)
@@ -577,15 +557,14 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
     /**
      * Returns the table name and the table alias for [[modelClass]].
      * @return array the table name and the table alias.
-     * @since 2.0.16
+     * @internal
      */
-    protected function getTableNameAndAlias()
+    private function getTableNameAndAlias()
     {
         if (empty($this->from)) {
             $tableName = $this->getPrimaryTableName();
         } else {
             $tableName = '';
-            // if the first entry in "from" is an alias-tablename-pair return it directly
             foreach ($this->from as $alias => $tableName) {
                 if (is_string($alias)) {
                     return [$tableName, $alias];
@@ -606,10 +585,9 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
     /**
      * Joins a parent query with a child query.
      * The current query object will be modified accordingly.
-     *
      * @param ActiveQuery $parent
      * @param ActiveQuery $child
-     * @param string      $joinType
+     * @param string $joinType
      */
     private function joinWithRelation($parent, $child, $joinType)
     {
@@ -627,8 +605,8 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
             return;
         }
 
-        list($parentTable, $parentAlias) = $parent->getTableNameAndAlias();
-        list($childTable, $childAlias) = $child->getTableNameAndAlias();
+        [$parentTable, $parentAlias] = $parent->getTableNameAndAlias();
+        [$childTable, $childAlias] = $child->getTableNameAndAlias();
 
         if (!empty($child->link)) {
             if (strpos($parentAlias, '{{') === false) {
@@ -688,7 +666,7 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
      * ```php
      * public function getActiveUsers()
      * {
-     *     return $this->hasMany(User::className(), ['id' => 'user_id'])
+     *     return $this->hasMany(User::class, ['id' => 'user_id'])
      *                 ->onCondition(['active' => true]);
      * }
      * ```
@@ -698,8 +676,7 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
      * record will cause an error in a non-join-query.
      *
      * @param string|array $condition the ON condition. Please refer to [[Query::where()]] on how to specify this parameter.
-     * @param array        $params    the parameters (name => value) to be bound to the query.
-     *
+     * @param array $params the parameters (name => value) to be bound to the query.
      * @return $this the query object itself
      */
     public function onCondition($condition, $params = [])
@@ -712,11 +689,9 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
     /**
      * Adds an additional ON condition to the existing one.
      * The new condition and the existing one will be joined using the 'AND' operator.
-     *
      * @param string|array $condition the new ON condition. Please refer to [[where()]]
-     *                                on how to specify this parameter.
-     * @param array        $params    the parameters (name => value) to be bound to the query.
-     *
+     * on how to specify this parameter.
+     * @param array $params the parameters (name => value) to be bound to the query.
      * @return $this the query object itself
      * @see onCondition()
      * @see orOnCondition()
@@ -735,11 +710,9 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
     /**
      * Adds an additional ON condition to the existing one.
      * The new condition and the existing one will be joined using the 'OR' operator.
-     *
      * @param string|array $condition the new ON condition. Please refer to [[where()]]
-     *                                on how to specify this parameter.
-     * @param array        $params    the parameters (name => value) to be bound to the query.
-     *
+     * on how to specify this parameter.
+     * @param array $params the parameters (name => value) to be bound to the query.
      * @return $this the query object itself
      * @see onCondition()
      * @see andOnCondition()
@@ -763,30 +736,30 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
      * ```php
      * public function getItems()
      * {
-     *     return $this->hasMany(Item::className(), ['id' => 'item_id'])
+     *     return $this->hasMany(Item::class, ['id' => 'item_id'])
      *                 ->viaTable('order_item', ['order_id' => 'id']);
      * }
      * ```
      *
-     * @param string   $tableName the name of the junction table.
-     * @param array    $link      the link between the junction table and the table associated with [[primaryModel]].
-     *                            The keys of the array represent the columns in the junction table, and the values represent the columns
-     *                            in the [[primaryModel]] table.
-     * @param callable $callable  a PHP callback for customizing the relation associated with the junction table.
-     *                            Its signature should be `function($query)`, where `$query` is the query to be customized.
-     *
+     * @param string $tableName the name of the junction table.
+     * @param array $link the link between the junction table and the table associated with [[primaryModel]].
+     * The keys of the array represent the columns in the junction table, and the values represent the columns
+     * in the [[primaryModel]] table.
+     * @param callable $callable a PHP callback for customizing the relation associated with the junction table.
+     * Its signature should be `function($query)`, where `$query` is the query to be customized.
      * @return $this the query object itself
-     * @throws InvalidConfigException when query is not initialized properly
      * @see via()
      */
     public function viaTable($tableName, $link, callable $callable = null)
     {
-        $modelClass = $this->primaryModel ? get_class($this->primaryModel) : $this->modelClass;
-        $relation = new self($modelClass);
-        $relation->from = [$tableName];
-        $relation->link = $link;
-        $relation->multiple = true;
-        $relation->asArray = true;
+        $modelClass = $this->primaryModel !== null ? get_class($this->primaryModel) : __CLASS__;
+
+        $relation = new self($modelClass, [
+            'from' => [$tableName],
+            'link' => $link,
+            'multiple' => true,
+            'asArray' => true,
+        ]);
         $this->via = $relation;
         if ($callable !== null) {
             call_user_func($callable, $relation);
@@ -802,14 +775,13 @@ class ActiveQuery extends BaseQuery implements ActiveQueryInterface
      * If none was defined, [[from]] will be populated with the given alias.
      *
      * @param string $alias the table alias.
-     *
      * @return $this the query object itself
      * @since 2.0.7
      */
     public function alias($alias)
     {
         if (empty($this->from) || count($this->from) < 2) {
-            list($tableName) = $this->getTableNameAndAlias();
+            [$tableName] = $this->getTableNameAndAlias();
             $this->from = [$alias => $tableName];
         } else {
             $tableName = $this->getPrimaryTableName();

@@ -5,6 +5,8 @@
  * @license http://www.yiiframework.com/license/
  */
 
+declare(strict_types=1);
+
 namespace Lengbin\YiiDb\Mysql;
 
 use Lengbin\YiiDb\ColumnSchemaBuilder as AbstractColumnSchemaBuilder;

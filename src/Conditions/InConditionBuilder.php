@@ -1,35 +1,43 @@
 <?php
 /**
  * @link http://www.yiiframework.com/
+ *
  * @copyright Copyright (c) 2008 Yii Software LLC
  * @license http://www.yiiframework.com/license/
  */
+
+declare(strict_types=1);
 
 namespace Lengbin\YiiDb\Conditions;
 
 use Lengbin\YiiDb\ExpressionBuilderInterface;
 use Lengbin\YiiDb\ExpressionBuilderTrait;
 use Lengbin\YiiDb\ExpressionInterface;
-use Lengbin\YiiDb\Query\BaseQuery;
+use Lengbin\YiiDb\Query;
 
 /**
- * Class InConditionBuilder builds objects of [[InCondition]]
+ * Class InConditionBuilder builds objects of [[InCondition]].
  *
  * @author Dmytro Naumenko <d.naumenko.a@gmail.com>
+ *
  * @since 2.0.14
  */
 class InConditionBuilder implements ExpressionBuilderInterface
 {
     use ExpressionBuilderTrait;
 
-
     /**
      * Method builds the raw SQL from the $expression that will not be additionally
      * escaped or quoted.
      *
      * @param ExpressionInterface|InCondition $expression the expression to be built.
-     * @param array $params the binding parameters.
+     * @param array                           $params     the binding parameters.
+     *
      * @return string the raw SQL that will not be additionally escaped or quoted.
+     * @throws \Lengbin\YiiDb\Exception\Exception
+     * @throws \Lengbin\YiiDb\Exception\InvalidConfigException
+     * @throws \Lengbin\YiiDb\Exception\NotSupportedException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     public function build(ExpressionInterface $expression, array &$params = [])
     {
@@ -42,7 +50,7 @@ class InConditionBuilder implements ExpressionBuilderInterface
             return $operator === 'IN' ? '0=1' : '';
         }
 
-        if ($values instanceof BaseQuery) {
+        if ($values instanceof Query) {
             return $this->buildSubqueryInCondition($operator, $column, $values, $params);
         }
 
@@ -50,22 +58,12 @@ class InConditionBuilder implements ExpressionBuilderInterface
             // ensure values is an array
             $values = (array) $values;
         }
-
-        if (is_array($column)) {
-            if (count($column) > 1) {
-                return $this->buildCompositeInCondition($operator, $column, $values, $params);
-            } else {
-                $column = reset($column);
-            }
+        if ($column instanceof \Traversable || ((is_array($column) || $column instanceof \Countable) && count($column) > 1)) {
+            return $this->buildCompositeInCondition($operator, $column, $values, $params);
         }
 
-        if ($column instanceof \Traversable) {
-            if (iterator_count($column) > 1) {
-                return $this->buildCompositeInCondition($operator, $column, $values, $params);
-            } else {
-                $column->rewind();
-                $column = $column->current();
-            }
+        if (is_array($column)) {
+            $column = reset($column);
         }
 
         $sqlValues = $this->buildValues($expression, $values, $params);
@@ -77,20 +75,21 @@ class InConditionBuilder implements ExpressionBuilderInterface
             $column = $this->queryBuilder->db->quoteColumnName($column);
         }
         if (count($sqlValues) > 1) {
-            return "$column $operator (" . implode(', ', $sqlValues) . ')';
+            return "$column $operator (".implode(', ', $sqlValues).')';
         }
 
         $operator = $operator === 'IN' ? '=' : '<>';
 
-        return $column . $operator . reset($sqlValues);
+        return $column.$operator.reset($sqlValues);
     }
 
     /**
-     * Builds $values to be used in [[InCondition]]
+     * Builds $values to be used in [[InCondition]].
      *
      * @param ConditionInterface|InCondition $condition
-     * @param array $values
-     * @param array $params the binding parameters
+     * @param array                          $values
+     * @param array                          $params    the binding parameters
+     *
      * @return array of prepared for SQL placeholders
      */
     protected function buildValues(ConditionInterface $condition, $values, &$params)
@@ -98,18 +97,9 @@ class InConditionBuilder implements ExpressionBuilderInterface
         $sqlValues = [];
         $column = $condition->getColumn();
 
-        if (is_array($column)) {
-            $column = reset($column);
-        }
-
-        if ($column instanceof \Traversable) {
-            $column->rewind();
-            $column = $column->current();
-        }
-
         foreach ($values as $i => $value) {
             if (is_array($value) || $value instanceof \ArrayAccess) {
-                $value = isset($value[$column]) ? $value[$column] : null;
+                $value = $value[$column] ?? null;
             }
             if ($value === null) {
                 $sqlValues[$i] = 'NULL';
@@ -126,11 +116,16 @@ class InConditionBuilder implements ExpressionBuilderInterface
     /**
      * Builds SQL for IN condition.
      *
-     * @param string $operator
+     * @param string       $operator
      * @param array|string $columns
-     * @param BaseQuery $values
-     * @param array $params
+     * @param Query        $values
+     * @param array        $params
+     *
      * @return string SQL
+     * @throws \Lengbin\YiiDb\Exception\Exception
+     * @throws \Lengbin\YiiDb\Exception\InvalidConfigException
+     * @throws \Lengbin\YiiDb\Exception\NotSupportedException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     protected function buildSubqueryInCondition($operator, $columns, $values, &$params)
     {
@@ -143,7 +138,7 @@ class InConditionBuilder implements ExpressionBuilderInterface
                 }
             }
 
-            return '(' . implode(', ', $columns) . ") $operator $sql";
+            return '('.implode(', ', $columns).") $operator $sql";
         }
 
         if (strpos($columns, '(') === false) {
@@ -156,11 +151,16 @@ class InConditionBuilder implements ExpressionBuilderInterface
     /**
      * Builds SQL for IN condition.
      *
-     * @param string $operator
+     * @param string             $operator
      * @param array|\Traversable $columns
-     * @param array $values
-     * @param array $params
+     * @param array              $values
+     * @param array              $params
+     *
      * @return string SQL
+     * @throws \Lengbin\YiiDb\Exception\Exception
+     * @throws \Lengbin\YiiDb\Exception\InvalidConfigException
+     * @throws \Lengbin\YiiDb\Exception\NotSupportedException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     protected function buildCompositeInCondition($operator, $columns, $values, &$params)
     {
@@ -174,7 +174,7 @@ class InConditionBuilder implements ExpressionBuilderInterface
                     $vs[] = 'NULL';
                 }
             }
-            $vss[] = '(' . implode(', ', $vs) . ')';
+            $vss[] = '('.implode(', ', $vs).')';
         }
 
         if (empty($vss)) {
@@ -186,6 +186,6 @@ class InConditionBuilder implements ExpressionBuilderInterface
             $sqlColumns[] = strpos($column, '(') === false ? $this->queryBuilder->db->quoteColumnName($column) : $column;
         }
 
-        return '(' . implode(', ', $sqlColumns) . ") $operator (" . implode(', ', $vss) . ')';
+        return '('.implode(', ', $sqlColumns).") $operator (".implode(', ', $vss).')';
     }
 }

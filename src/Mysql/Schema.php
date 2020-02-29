@@ -1,41 +1,45 @@
 <?php
 /**
  * @link      http://www.yiiframework.com/
+ *
  * @copyright Copyright (c) 2008 Yii Software LLC
  * @license   http://www.yiiframework.com/license/
  */
 
+declare(strict_types=1);
+
 namespace Lengbin\YiiDb\Mysql;
 
-use Lengbin\YiiDb\ConstraintFinderTrait;
+use Lengbin\Helper\YiiSoft\Arrays\ArrayHelper;
+use Lengbin\YiiDb\Constraint;
 use Lengbin\YiiDb\Exception\Exception;
 use Lengbin\YiiDb\Exception\InvalidConfigException;
 use Lengbin\YiiDb\Exception\NotSupportedException;
+use Lengbin\YiiDb\ConstraintFinderInterface;
+use Lengbin\YiiDb\ConstraintFinderTrait;
 use Lengbin\YiiDb\Expression;
 use Lengbin\YiiDb\ForeignKeyConstraint;
 use Lengbin\YiiDb\IndexConstraint;
 use Lengbin\YiiDb\TableSchema;
-use Yiisoft\Arrays\ArrayHelper;
 
 /**
  * Schema is the class for retrieving metadata from a MySQL database (version 4.1.x and 5.x).
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
+ *
  * @since  2.0
  */
-class Schema extends \Lengbin\YiiDb\Schema implements \Lengbin\YiiDb\ConstraintFinderInterface
+class Schema extends \Lengbin\YiiDb\Schema implements ConstraintFinderInterface
 {
     use ConstraintFinderTrait;
-
     /**
      * {@inheritdoc}
      */
-    public $columnSchemaClass = ColumnSchema::class;
+    public $columnSchemaClass = 'Lengbin\YiiDb\Mysql\ColumnSchema';
     /**
      * @var bool whether MySQL used is older than 5.1.
      */
     private $_oldMysql;
-
     /**
      * @var array mapping from physical column types (keys) to abstract column types (values)
      */
@@ -70,7 +74,6 @@ class Schema extends \Lengbin\YiiDb\Schema implements \Lengbin\YiiDb\ConstraintF
         'varbinary'  => self::TYPE_BINARY,
         'json'       => self::TYPE_JSON,
     ];
-
     /**
      * {@inheritdoc}
      */
@@ -107,21 +110,17 @@ class Schema extends \Lengbin\YiiDb\Schema implements \Lengbin\YiiDb\ConstraintF
         if ($schema !== '') {
             $sql .= ' FROM ' . $this->quoteSimpleTableName($schema);
         }
-        $query = $this->db->getQuery();
-        $rows = $query->query($sql);
-        return $query->columnByData($rows);
+        return $this->db->createCommand($sql)->queryColumn();
     }
 
     /**
-     * @param string $name
-     *
-     * @return TableSchema|null
-     * @throws \Exception
+     * {@inheritdoc}
      */
     protected function loadTableSchema($name)
     {
         $table = new TableSchema();
         $this->resolveTableNames($table, $name);
+
         if ($this->findColumns($table)) {
             $this->findConstraints($table);
             return $table;
@@ -161,12 +160,11 @@ FROM `information_schema`.`STATISTICS` AS `s`
 WHERE `s`.`TABLE_SCHEMA` = COALESCE(:schemaName, DATABASE()) AND `s`.`INDEX_SCHEMA` = `s`.`TABLE_SCHEMA` AND `s`.`TABLE_NAME` = :tableName
 ORDER BY `s`.`SEQ_IN_INDEX` ASC
 SQL;
-
         $resolvedName = $this->resolveTableName($tableName);
-        $indexes = $this->db->getQuery()->query($sql, [
+        $indexes = $this->db->createCommand($sql, [
             ':schemaName' => $resolvedName->schemaName,
             ':tableName'  => $resolvedName->name,
-        ]);
+        ])->queryAll();
         $indexes = $this->normalizePdoRowKeyCase($indexes, true);
         $indexes = ArrayHelper::index($indexes, null, 'name');
         $result = [];
@@ -178,7 +176,6 @@ SQL;
                 'columnNames' => ArrayHelper::getColumn($index, 'column_name'),
             ]);
         }
-
         return $result;
     }
 
@@ -192,6 +189,7 @@ SQL;
 
     /**
      * {@inheritdoc}
+     *
      * @throws NotSupportedException if this method is called.
      */
     protected function loadTableChecks($tableName)
@@ -201,6 +199,7 @@ SQL;
 
     /**
      * {@inheritdoc}
+     *
      * @throws NotSupportedException if this method is called.
      */
     protected function loadTableDefaultValues($tableName)
@@ -210,6 +209,7 @@ SQL;
 
     /**
      * Creates a query builder for the MySQL database.
+     *
      * @return QueryBuilder query builder instance
      */
     public function createQueryBuilder()
@@ -245,16 +245,13 @@ SQL;
     protected function loadColumnSchema($info)
     {
         $column = $this->createColumnSchema();
-
         $column->name = $info['field'];
         $column->allowNull = $info['null'] === 'YES';
         $column->isPrimaryKey = strpos($info['key'], 'PRI') !== false;
         $column->autoIncrement = stripos($info['extra'], 'auto_increment') !== false;
         $column->comment = $info['comment'];
-
         $column->dbType = $info['type'];
         $column->unsigned = stripos($column->dbType, 'unsigned') !== false;
-
         $column->type = self::TYPE_STRING;
         if (preg_match('/^(\w+)(?:\(([^\)]+)\))?/', $column->dbType, $matches)) {
             $type = strtolower($matches[1]);
@@ -286,9 +283,7 @@ SQL;
                 }
             }
         }
-
         $column->phpType = $this->getColumnPhpType($column);
-
         if (!$column->isPrimaryKey) {
             /**
              * When displayed in the INFORMATION_SCHEMA.COLUMNS table, a default CURRENT TIMESTAMP is displayed
@@ -296,15 +291,15 @@ SQL;
              *
              * See details here: https://mariadb.com/kb/en/library/now/#description
              */
-            if (($column->type === 'timestamp' || $column->type === 'datetime') && ($info['default'] === 'CURRENT_TIMESTAMP' || $info['default'] === 'current_timestamp()')) {
-                $column->defaultValue = new Expression('CURRENT_TIMESTAMP');
+            if (($column->type === 'timestamp' || $column->type === 'datetime')
+                && preg_match('/^current_timestamp(?:\(([0-9]*)\))?$/i', $info['default'], $matches)) {
+                $column->defaultValue = new Expression('CURRENT_TIMESTAMP' . (!empty($matches[1]) ? '(' . $matches[1] . ')' : ''));
             } elseif (isset($type) && $type === 'bit') {
                 $column->defaultValue = bindec(trim($info['default'], 'b\''));
             } else {
                 $column->defaultValue = $column->phpTypecast($info['default']);
             }
         }
-
         return $column;
     }
 
@@ -315,12 +310,13 @@ SQL;
      *
      * @return bool whether the table exists in the database
      * @throws \Exception if DB query fails
+     *
      */
     protected function findColumns($table)
     {
         $sql = 'SHOW FULL COLUMNS FROM ' . $this->quoteTableName($table->fullName);
         try {
-            $columns = $this->db->getQuery()->query($sql);
+            $columns = $this->db->createCommand($sql)->queryAll();
         } catch (\Exception $e) {
             $previous = $e->getPrevious();
             if ($previous instanceof \PDOException && strpos($previous->getMessage(), 'SQLSTATE[42S02') !== false) {
@@ -331,8 +327,9 @@ SQL;
             throw $e;
         }
         foreach ($columns as $info) {
-            $info = (array)$info;
-            $info = array_change_key_case($info, CASE_LOWER);
+            if ($this->db->slavePdo->getAttribute(\PDO::ATTR_CASE) !== \PDO::CASE_LOWER) {
+                $info = array_change_key_case($info, CASE_LOWER);
+            }
             $column = $this->loadColumnSchema($info);
             $table->columns[$column->name] = $column;
             if ($column->isPrimaryKey) {
@@ -342,7 +339,6 @@ SQL;
                 }
             }
         }
-
         return true;
     }
 
@@ -355,14 +351,13 @@ SQL;
      */
     protected function getCreateTableSql($table)
     {
-        $row = $this->db->getQuery()->queryOne('SHOW CREATE TABLE ' . $this->quoteTableName($table->fullName));
+        $row = $this->db->createCommand('SHOW CREATE TABLE ' . $this->quoteTableName($table->fullName))->queryOne();
         if (isset($row['Create Table'])) {
             $sql = $row['Create Table'];
         } else {
             $row = array_values($row);
             $sql = $row[1];
         }
-
         return $sql;
     }
 
@@ -392,72 +387,13 @@ JOIN information_schema.key_column_usage AS kcu ON
 WHERE rc.constraint_schema = database() AND kcu.table_schema = database()
 AND rc.table_name = :tableName AND kcu.table_name = :tableName1
 SQL;
-
-        try {
-            $rows = $this->db->getQuery()->query($sql, [':tableName' => $table->name, ':tableName1' => $table->name]);
-            $constraints = [];
-
-            foreach ($rows as $row) {
-                $constraints[$row['constraint_name']]['referenced_table_name'] = $row['referenced_table_name'];
-                $constraints[$row['constraint_name']]['columns'][$row['column_name']] = $row['referenced_column_name'];
-            }
-
-            $table->foreignKeys = [];
-            foreach ($constraints as $name => $constraint) {
-                $table->foreignKeys[$name] = array_merge([$constraint['referenced_table_name']], $constraint['columns']);
-            }
-        } catch (\Exception $e) {
-            $previous = $e->getPrevious();
-            if (!$previous instanceof \PDOException || strpos($previous->getMessage(), 'SQLSTATE[42S02') === false) {
-                throw $e;
-            }
-
-            // table does not exist, try to determine the foreign keys using the table creation sql
-            $sql = $this->getCreateTableSql($table);
-            $regexp = '/FOREIGN KEY\s+\(([^\)]+)\)\s+REFERENCES\s+([^\(^\s]+)\s*\(([^\)]+)\)/mi';
-            if (preg_match_all($regexp, $sql, $matches, PREG_SET_ORDER)) {
-                foreach ($matches as $match) {
-                    $fks = array_map('trim', explode(',', str_replace('`', '', $match[1])));
-                    $pks = array_map('trim', explode(',', str_replace('`', '', $match[3])));
-                    $constraint = [str_replace('`', '', $match[2])];
-                    foreach ($fks as $k => $name) {
-                        $constraint[$name] = $pks[$k];
-                    }
-                    $table->foreignKeys[md5(serialize($constraint))] = $constraint;
-                }
-                $table->foreignKeys = array_values($table->foreignKeys);
-            }
-        }
-    }
-    protected function findConstraintsOld($table)
-    {
-        $sql = <<<'SQL'
-SELECT
-    kcu.constraint_name,
-    kcu.column_name,
-    kcu.referenced_table_name,
-    kcu.referenced_column_name
-FROM information_schema.referential_constraints AS rc
-JOIN information_schema.key_column_usage AS kcu ON
-    (
-        kcu.constraint_catalog = rc.constraint_catalog OR
-        (kcu.constraint_catalog IS NULL AND rc.constraint_catalog IS NULL)
-    ) AND
-    kcu.constraint_schema = rc.constraint_schema AND
-    kcu.constraint_name = rc.constraint_name
-WHERE rc.constraint_schema = database() AND kcu.table_schema = database()
-AND rc.table_name = :tableName AND kcu.table_name = :tableName1
-SQL;
-
         try {
             $rows = $this->db->createCommand($sql, [':tableName' => $table->name, ':tableName1' => $table->name])->queryAll();
             $constraints = [];
-
             foreach ($rows as $row) {
                 $constraints[$row['constraint_name']]['referenced_table_name'] = $row['referenced_table_name'];
                 $constraints[$row['constraint_name']]['columns'][$row['column_name']] = $row['referenced_column_name'];
             }
-
             $table->foreignKeys = [];
             foreach ($constraints as $name => $constraint) {
                 $table->foreignKeys[$name] = array_merge(
@@ -470,7 +406,6 @@ SQL;
             if (!$previous instanceof \PDOException || strpos($previous->getMessage(), 'SQLSTATE[42S02') === false) {
                 throw $e;
             }
-
             // table does not exist, try to determine the foreign keys using the table creation sql
             $sql = $this->getCreateTableSql($table);
             $regexp = '/FOREIGN KEY\s+\(([^\)]+)\)\s+REFERENCES\s+([^\(^\s]+)\s*\(([^\)]+)\)/mi';
@@ -488,6 +423,7 @@ SQL;
             }
         }
     }
+
     /**
      * Returns all unique indexes for the given table.
      *
@@ -508,7 +444,6 @@ SQL;
     {
         $sql = $this->getCreateTableSql($table);
         $uniqueIndexes = [];
-
         $regexp = '/UNIQUE KEY\s+\`(.+)\`\s*\((\`.+\`)+\)/mi';
         if (preg_match_all($regexp, $sql, $matches, PREG_SET_ORDER)) {
             foreach ($matches as $match) {
@@ -517,7 +452,6 @@ SQL;
                 $uniqueIndexes[$indexName] = $indexColumns;
             }
         }
-
         return $uniqueIndexes;
     }
 
@@ -531,17 +465,18 @@ SQL;
 
     /**
      * @return bool whether the version of the MySQL being used is older than 5.1.
-     * @throws InvalidConfigException
+     *
      * @throws Exception
+     *
+     * @throws InvalidConfigException
      * @since 2.0.13
      */
     protected function isOldMysql()
     {
         if ($this->_oldMysql === null) {
-            $version = $this->db->getQuery()->scalar('select version()');
+            $version = $this->db->getSlavePdo()->getAttribute(\PDO::ATTR_SERVER_VERSION);
             $this->_oldMysql = version_compare($version, '5.1', '<=');
         }
-
         return $this->_oldMysql;
     }
 
@@ -599,12 +534,11 @@ WHERE
     AND `tc`.`TABLE_SCHEMA` = `kcu`.`TABLE_SCHEMA` AND `tc`.`TABLE_NAME` = :tableName AND `tc`.`CONSTRAINT_NAME` = `kcu`.`CONSTRAINT_NAME` AND `tc`.`CONSTRAINT_TYPE` IN ('PRIMARY KEY', 'UNIQUE')
 ORDER BY `position` ASC
 SQL;
-
         $resolvedName = $this->resolveTableName($tableName);
-        $constraints = $this->db->getQuery()->query($sql, [
+        $constraints = $this->db->createCommand($sql, [
             ':schemaName' => $resolvedName->schemaName,
             ':tableName'  => $resolvedName->name,
-        ]);
+        ])->queryAll();
         $constraints = $this->normalizePdoRowKeyCase($constraints, true);
         $constraints = ArrayHelper::index($constraints, null, ['type', 'name']);
         $result = [
@@ -643,7 +577,6 @@ SQL;
         foreach ($result as $type => $data) {
             $this->setTableMetadata($tableName, $type, $data);
         }
-
         return $result[$returnType];
     }
 }

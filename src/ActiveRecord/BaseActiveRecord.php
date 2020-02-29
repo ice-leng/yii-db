@@ -5,24 +5,24 @@
  * @license http://www.yiiframework.com/license/
  */
 
+declare(strict_types=1);
+
 namespace Lengbin\YiiDb\ActiveRecord;
 
-
-use Lengbin\YiiDb\Event\AfterSaveEvent;
-use Lengbin\YiiDb\Event\ModelEvent;
+use Lengbin\Helper\YiiSoft\Arrays\ArrayHelper;
+use Lengbin\YiiDb\Command;
 use Lengbin\YiiDb\Exception\Exception;
 use Lengbin\YiiDb\Exception\InvalidArgumentException;
 use Lengbin\YiiDb\Exception\InvalidCallException;
 use Lengbin\YiiDb\Exception\InvalidConfigException;
-use Lengbin\YiiDb\Exception\InvalidParamException;
 use Lengbin\YiiDb\Exception\NotSupportedException;
 use Lengbin\YiiDb\Exception\StaleObjectException;
-use Lengbin\YiiDb\Query\BaseQuery;
+use Lengbin\YiiDb\Exception\UnknownMethodException;
 
 /**
  * ActiveRecord is the base class for classes representing relational data in terms of objects.
  *
- * See [[\yii\db\ActiveRecord]] for a concrete implementation.
+ * See [[\Yiisoft\ActiveRecord\ActiveRecord]] for a concrete implementation.
  *
  * @property array $dirtyAttributes The changed attribute values (name-value pairs). This property is
  * read-only.
@@ -44,42 +44,48 @@ use Lengbin\YiiDb\Query\BaseQuery;
  */
 abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
 {
+
     /**
-     * @event Event an event that is triggered after the record is created and populated with query result.
+     * @event raised after executing init action
      */
-    const EVENT_AFTER_FIND = 'afterFind';
+    const INIT = 'BaseActiveRecord::INIT';
     /**
-     * @event ModelEvent an event that is triggered before inserting a record.
-     * You may set [[ModelEvent::isValid]] to be `false` to stop the insertion.
+     * @event raised after executing find action
      */
-    const EVENT_BEFORE_INSERT = 'beforeInsert';
+    const AFTER_FIND = 'BaseActiveRecord::AFTER_FIND';
     /**
-     * @event AfterSaveEvent an event that is triggered after a record is inserted.
+     * @event raised after executing find action
      */
-    const EVENT_AFTER_INSERT = 'afterInsert';
+    const AFTER_REFRESH = 'BaseActiveRecord::AFTER_REFRESH';
     /**
-     * @event ModelEvent an event that is triggered before updating a record.
-     * You may set [[ModelEvent::isValid]] to be `false` to stop the update.
+     * @event event raised at the beginning of [[delete()]]. You may set
+     * [[Event::isValid]] to be false to stop the validation.
      */
-    const EVENT_BEFORE_UPDATE = 'beforeUpdate';
+    const BEFORE_DELETE = 'BaseActiveRecord::BEFORE_DELETE';
     /**
-     * @event AfterSaveEvent an event that is triggered after a record is updated.
+     * @event raised after executing delete action
      */
-    const EVENT_AFTER_UPDATE = 'afterUpdate';
+    const AFTER_DELETE = 'BaseActiveRecord::AFTER_DELETE';
+
     /**
-     * @event ModelEvent an event that is triggered before deleting a record.
-     * You may set [[ModelEvent::isValid]] to be `false` to stop the deletion.
+     * @event event raised at the beginning of [[save()]]. You may set
+     * [[Event::isValid]] to be false to stop the validation.
      */
-    const EVENT_BEFORE_DELETE = 'beforeDelete';
+    const BEFORE_INSERT = 'BaseActiveRecord::BEFORE_INSERT';
     /**
-     * @event Event an event that is triggered after a record is deleted.
+     * @event raised after executing insert action
      */
-    const EVENT_AFTER_DELETE = 'afterDelete';
+    const AFTER_INSERT = 'BaseActiveRecord::AFTER_INSERT';
+
     /**
-     * @event Event an event that is triggered after a record is refreshed.
-     * @since 2.0.8
+     * @event event raised at the beginning of [[save()]]. You may set
+     * [[Event::isValid]] to be false to stop the validation.
      */
-    const EVENT_AFTER_REFRESH = 'afterRefresh';
+    const BEFORE_UPDATE = 'BaseActiveRecord::BEFORE_UPDATE';
+    /**
+     * @event raised after executing update action
+     */
+    const AFTER_UPDATE = 'BaseActiveRecord::AFTER_UPDATE';
 
     /**
      * @var array attribute values indexed by attribute names
@@ -130,7 +136,7 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
     {
         $query = static::find();
 
-        if (is_string($condition)) {
+        if (!ArrayHelper::isAssociative($condition)) {
             // query by primary key
             $primaryKey = static::primaryKey();
             if (isset($primaryKey[0])) {
@@ -239,11 +245,34 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
     /**
      * {@inheritdoc}
      */
-    public function canSetProperty($name, $checkVars = true, $checkBehaviors = true)
+    public function canGetProperty($name, $checkVars = true, $checkBehaviors = true)
     {
-        if (method_exists($this, 'set' . $name) || $checkVars && property_exists($this, $name)) {
+        $setter = 'get' . $name;
+        if (method_exists($this, $setter)) {
             return true;
-        } else {
+        }
+
+        try {
+            return $this->hasAttribute($name);
+        } catch (\Exception $e) {
+            // `hasAttribute()` may fail on base/abstract classes in case automatic attribute list fetching used
+            return false;
+        }
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function canSetProperty($name)
+    {
+        $setter = 'set' . $name;
+        if (method_exists($this, $setter)) {
+            return true;
+        }
+        try {
+            return $this->hasAttribute($name);
+        } catch (\Exception $e) {
+            // `hasAttribute()` may fail on base/abstract classes in case automatic attribute list fetching used
             return false;
         }
     }
@@ -270,13 +299,7 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
         if (isset($this->_related[$name]) || array_key_exists($name, $this->_related)) {
             return $this->_related[$name];
         }
-
-        $getter = 'get' . $name;
-        if (method_exists($this, $getter)) {
-            // read property, e.g. getName()
-            $value = $this->$getter();
-        }
-
+        $value = parent::__get($name);
         if ($value instanceof ActiveQueryInterface) {
             $this->setRelationDependencies($name, $value);
             return $this->_related[$name] = $value->findFor($name, $this);
@@ -302,10 +325,7 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
             }
             $this->_attributes[$name] = $value;
         } else {
-            $setter = 'set' . $name;
-            if (method_exists($this, $setter)) {
-                $this->$setter($value);
-            }
+            parent::__set($name, $value);
         }
     }
 
@@ -342,10 +362,7 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
         } elseif (array_key_exists($name, $this->_related)) {
             unset($this->_related[$name]);
         } elseif ($this->getRelation($name, false) === null) {
-            $setter = 'set' . $name;
-            if (method_exists($this, $setter)) {
-                $this->$setter(null);
-            }
+            parent::__unset($name);
         }
     }
 
@@ -363,7 +380,7 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
      * ```php
      * public function getCountry()
      * {
-     *     return $this->hasOne(Country::className(), ['id' => 'country_id']);
+     *     return $this->hasOne(Country::class, ['id' => 'country_id']);
      * }
      * ```
      *
@@ -398,7 +415,7 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
      * ```php
      * public function getOrders()
      * {
-     *     return $this->hasMany(Order::className(), ['customer_id' => 'id']);
+     *     return $this->hasMany(Order::class, ['customer_id' => 'id']);
      * }
      * ```
      *
@@ -770,21 +787,6 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
         return $rows;
     }
 
-    public function beforeSave($insert)
-    {
-        $event = new ModelEvent();
-        $this->trigger($insert ? self::EVENT_BEFORE_INSERT : self::EVENT_BEFORE_UPDATE, $event);
-
-        return $event->isValid;
-    }
-
-    public function afterSave($insert, $changedAttributes)
-    {
-        $event = new AfterSaveEvent();
-        $event->changedAttributes = $changedAttributes;
-        $this->trigger($insert ? self::EVENT_AFTER_INSERT : self::EVENT_AFTER_UPDATE, $event);
-    }
-
     /**
      * @see update()
      * @param array $attributes attributes to update
@@ -796,7 +798,6 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
         if (!$this->beforeSave(false)) {
             return false;
         }
-
         $values = $this->getDirtyAttributes($attributes);
         if (empty($values)) {
             $this->afterSave(false, $values);
@@ -865,14 +866,6 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
         return false;
     }
 
-    public function beforeDelete()
-    {
-        $event = new ModelEvent();
-        $this->trigger(self::EVENT_BEFORE_DELETE, $event);
-
-        return $event->isValid;
-    }
-
     /**
      * Deletes the table row corresponding to this active record.
      *
@@ -914,11 +907,6 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
         return $result;
     }
 
-    public function afterDelete()
-    {
-        $this->trigger(self::EVENT_AFTER_DELETE);
-    }
-
     /**
      * Returns a value indicating whether the current record is new.
      * @return bool whether the record is new and should be inserted when calling [[save()]].
@@ -936,6 +924,123 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
     public function setIsNewRecord($value)
     {
         $this->_oldAttributes = $value ? null : $this->_attributes;
+    }
+
+    /**
+     * Initializes the object.
+     * This method is called at the end of the constructor.
+     * The default implementation will trigger an [[EVENT_INIT]] event.
+     */
+    public function init()
+    {
+        parent::init();
+        $this->trigger(self::INIT);
+    }
+
+    /**
+     * This method is called when the AR object is created and populated with the query result.
+     * The default implementation will trigger an [[EVENT_AFTER_FIND]] event.
+     * When overriding this method, make sure you call the parent implementation to ensure the
+     * event is triggered.
+     */
+    public function afterFind()
+    {
+        $this->trigger(self::AFTER_FIND);
+    }
+
+    /**
+     * This method is called at the beginning of inserting or updating a record.
+     *
+     * The default implementation will trigger an [[EVENT_BEFORE_INSERT]] event when `$insert` is `true`,
+     * or an [[EVENT_BEFORE_UPDATE]] event if `$insert` is `false`.
+     * When overriding this method, make sure you call the parent implementation like the following:
+     *
+     * ```php
+     * public function beforeSave($insert)
+     * {
+     *     if (!parent::beforeSave($insert)) {
+     *         return false;
+     *     }
+     *
+     *     // ...custom code here...
+     *     return true;
+     * }
+     * ```
+     *
+     * @param bool $insert whether this method called while inserting a record.
+     * If `false`, it means the method is called while updating a record.
+     * @return bool whether the insertion or updating should continue.
+     * If `false`, the insertion or updating will be cancelled.
+     */
+    public function beforeSave($insert)
+    {
+        $event = new ModelEvent();
+        $this->trigger($insert ? self::BEFORE_INSERT : self::BEFORE_UPDATE, $event);
+        return $event->isValid;
+    }
+
+    /**
+     * This method is called at the end of inserting or updating a record.
+     * The default implementation will trigger an [[EVENT_AFTER_INSERT]] event when `$insert` is `true`,
+     * or an [[EVENT_AFTER_UPDATE]] event if `$insert` is `false`. The event class used is [[AfterSaveEvent]].
+     * When overriding this method, make sure you call the parent implementation so that
+     * the event is triggered.
+     * @param bool $insert whether this method called while inserting a record.
+     * If `false`, it means the method is called while updating a record.
+     * @param array $changedAttributes The old values of attributes that had changed and were saved.
+     * You can use this parameter to take action based on the changes made for example send an email
+     * when the password had changed or implement audit trail that tracks all the changes.
+     * `$changedAttributes` gives you the old attribute values while the active record (`$this`) has
+     * already the new, updated values.
+     *
+     * Note that no automatic type conversion performed by default. You may use
+     * [[\yii\behaviors\AttributeTypecastBehavior]] to facilitate attribute typecasting.
+     * See http://www.yiiframework.com/doc-2.0/guide-db-active-record.html#attributes-typecasting.
+     */
+    public function afterSave($insert, $changedAttributes)
+    {
+        $this->trigger($insert ? self::AFTER_INSERT : self::AFTER_UPDATE, new AfterSaveEvent([
+            'changedAttributes' => $changedAttributes,
+        ]));
+    }
+
+    /**
+     * This method is invoked before deleting a record.
+     *
+     * The default implementation raises the [[EVENT_BEFORE_DELETE]] event.
+     * When overriding this method, make sure you call the parent implementation like the following:
+     *
+     * ```php
+     * public function beforeDelete()
+     * {
+     *     if (!parent::beforeDelete()) {
+     *         return false;
+     *     }
+     *
+     *     // ...custom code here...
+     *     return true;
+     * }
+     * ```
+     *
+     * @return bool whether the record should be deleted. Defaults to `true`.
+     */
+    public function beforeDelete()
+    {
+        $event = new ModelEvent();
+        $this->trigger(self::BEFORE_DELETE, $event);
+
+        return $event->isValid;
+    }
+
+    /**
+     * This method is invoked after deleting a record.
+     * The default implementation raises the [[EVENT_AFTER_DELETE]] event.
+     * You may override this method to do postprocessing after the record is deleted.
+     * Make sure you call the parent implementation so that the event is raised properly.
+     */
+    public function afterDelete()
+    {
+        $this->trigger(self::AFTER_DELETE);
     }
 
     /**
@@ -972,10 +1077,22 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
         $this->_oldAttributes = $record->_oldAttributes;
         $this->_related = [];
         $this->_relationsDependencies = [];
+        $this->afterRefresh();
 
         return true;
     }
 
+    /**
+     * This method is called when the AR object is refreshed.
+     * The default implementation will trigger an [[EVENT_AFTER_REFRESH]] event.
+     * When overriding this method, make sure you call the parent implementation to ensure the
+     * event is triggered.
+     * @since 2.0.8
+     */
+    public function afterRefresh()
+    {
+        $this->trigger(self::AFTER_REFRESH);
+    }
 
     /**
      * Returns a value indicating whether the given active record is the same as the current one.
@@ -1128,7 +1245,7 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
         try {
             // the relation could be defined in a behavior
             $relation = $this->$getter();
-        } catch (\Exception $e) {
+        } catch (UnknownMethodException $e) {
             if ($throwException) {
                 throw new InvalidArgumentException(get_class($this) . ' has no relation named "' . $name . '".', 0, $e);
             }
@@ -1188,7 +1305,7 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
             }
             if (is_array($relation->via)) {
                 /* @var $viaRelation ActiveQuery */
-                list($viaName, $viaRelation) = $relation->via;
+                [$viaName, $viaRelation] = $relation->via;
                 $viaClass = $viaRelation->modelClass;
                 // unset $viaName so that it can be reloaded to reflect the change
                 unset($this->_related[$viaName]);
@@ -1216,13 +1333,8 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
                 $record->insert(false);
             } else {
                 /* @var $viaTable string */
-//                static::getDb()->createCommand()
-//                    ->insert($viaTable, $columns)->execute();
-                $params = [];
-                /* @var $query BaseQuery */
-                $query = self::getDb();
-                $sql = $query->getConnect()->getQueryBuilder()->insert($viaTable, $columns, $params);
-                $query->execute($sql, $params);
+                static::getDb()->createCommand()
+                    ->insert($viaTable, $columns)->execute();
             }
         } else {
             $p1 = $model->isPrimaryKey(array_keys($relation->link));
@@ -1283,7 +1395,7 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
         if ($relation->via !== null) {
             if (is_array($relation->via)) {
                 /* @var $viaRelation ActiveQuery */
-                list($viaName, $viaRelation) = $relation->via;
+                [$viaName, $viaRelation] = $relation->via;
                 $viaClass = $viaRelation->modelClass;
                 unset($this->_related[$viaName]);
             } else {
@@ -1310,15 +1422,12 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
                 }
             } else {
                 /* @var $viaTable string */
-                /* @var $query BaseQuery */
-                $query = static::getDb();
-                $params = [];
+                /* @var $command Command */
+                $command = static::getDb()->createCommand();
                 if ($delete) {
-                    $sql = $query->getConnect()->getQueryBuilder()->delete($viaTable, $columns, $params);
-                    $query->execute($sql, $params);
+                    $command->delete($viaTable, $columns)->execute();
                 } else {
-                    $sql = $query->getConnect()->getQueryBuilder()->update($viaTable, $nulls, $columns, $params);
-                    $query->execute($sql, $params);
+                    $command->update($viaTable, $nulls, $columns)->execute();
                 }
             }
         } else {
@@ -1385,7 +1494,7 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
         if ($relation->via !== null) {
             if (is_array($relation->via)) {
                 /* @var $viaRelation ActiveQuery */
-                list($viaName, $viaRelation) = $relation->via;
+                [$viaName, $viaRelation] = $relation->via;
                 $viaClass = $viaRelation->modelClass;
                 unset($this->_related[$viaName]);
             } else {
@@ -1412,26 +1521,14 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
                     $viaClass::updateAll($nulls, $condition);
                 }
             } else {
-//                /* @var $viaTable string */
-//                /* @var $command Command */
-//                $command = static::getDb()->createCommand();
-//                if ($delete) {
-//                    $command->delete($viaTable, $condition)->execute();
-//                } else {
-//                    $command->update($viaTable, $nulls, $condition)->execute();
-//                }
                 /* @var $viaTable string */
-                /* @var $query BaseQuery */
-                $query = static::getDb();
-                $params = [];
+                /* @var $command Command */
+                $command = static::getDb()->createCommand();
                 if ($delete) {
-                    $sql = $query->getConnect()->getQueryBuilder()->delete($viaTable, $condition, $params);
-                    $query->execute($sql, $params);
+                    $command->delete($viaTable, $condition)->execute();
                 } else {
-                    $sql = $query->getConnect()->getQueryBuilder()->update($viaTable, $nulls, $condition, $params);
-                    $query->execute($sql, $params);
+                    $command->update($viaTable, $nulls, $condition)->execute();
                 }
-
             }
         } else {
             /* @var $relatedModel ActiveRecordInterface */
@@ -1478,9 +1575,9 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
                 throw new InvalidCallException('Unable to link models: the primary key of ' . get_class($primaryModel) . ' is null.');
             }
             if (is_array($foreignModel->$fk)) { // relation via array valued attribute
-                $foreignModel->{$fk}[] = $value;
+                $foreignModel->$fk = array_merge($foreignModel->$fk, [$value]);
             } else {
-                $foreignModel->{$fk} = $value;
+                $foreignModel->$fk = $value;
             }
         }
         $foreignModel->save(false);
@@ -1511,11 +1608,10 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
      */
     public function getAttributeLabel($attribute)
     {
-        $labels = [];
+        $labels = $this->attributeLabels();
         if (isset($labels[$attribute])) {
             return $labels[$attribute];
         } elseif (strpos($attribute, '.')) {
-            echo 1;
             $attributeParts = explode('.', $attribute);
             $neededAttribute = array_pop($attributeParts);
 
@@ -1526,7 +1622,7 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
                 } else {
                     try {
                         $relation = $relatedModel->getRelation($relationName);
-                    } catch (InvalidParamException $e) {
+                    } catch (InvalidArgumentException $e) {
                         return $this->generateAttributeLabel($attribute);
                     }
                     /* @var $modelClass ActiveRecordInterface */
@@ -1540,50 +1636,10 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
                 return $labels[$neededAttribute];
             }
         }
-        return parent::getAttributeLabel($attribute);
+
+        return $this->generateAttributeLabel($attribute);
     }
 
-    /**
-     * Returns the text hint for the specified attribute.
-     * If the attribute looks like `relatedModel.attribute`, then the attribute will be received from the related model.
-     * @param string $attribute the attribute name
-     * @return string the attribute hint
-     * @see attributeHints()
-     * @since 2.0.4
-     */
-    public function getAttributeHint($attribute)
-    {
-        $hints = $this->attributeHints();
-        if (isset($hints[$attribute])) {
-            return $hints[$attribute];
-        } elseif (strpos($attribute, '.')) {
-            $attributeParts = explode('.', $attribute);
-            $neededAttribute = array_pop($attributeParts);
-
-            $relatedModel = $this;
-            foreach ($attributeParts as $relationName) {
-                if ($relatedModel->isRelationPopulated($relationName) && $relatedModel->$relationName instanceof self) {
-                    $relatedModel = $relatedModel->$relationName;
-                } else {
-                    try {
-                        $relation = $relatedModel->getRelation($relationName);
-                    } catch (InvalidParamException $e) {
-                        return '';
-                    }
-                    /* @var $modelClass ActiveRecordInterface */
-                    $modelClass = $relation->modelClass;
-                    $relatedModel = $modelClass::instance();
-                }
-            }
-
-            $hints = $relatedModel->attributeHints();
-            if (isset($hints[$neededAttribute])) {
-                return $hints[$neededAttribute];
-            }
-        }
-
-        return '';
-    }
 
     /**
      * {@inheritdoc}
@@ -1640,27 +1696,18 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
      * Sets relation dependencies for a property
      * @param string $name property name
      * @param ActiveQueryInterface $relation relation instance
-     * @param string|null $viaRelationName intermediate relation
      */
-    private function setRelationDependencies($name, $relation, $viaRelationName = null)
+    private function setRelationDependencies($name, $relation)
     {
         if (empty($relation->via) && $relation->link) {
             foreach ($relation->link as $attribute) {
                 $this->_relationsDependencies[$attribute][$name] = $name;
-                if ($viaRelationName !== null) {
-                    $this->_relationsDependencies[$attribute][] = $viaRelationName;
-                }
             }
         } elseif ($relation->via instanceof ActiveQueryInterface) {
             $this->setRelationDependencies($name, $relation->via);
         } elseif (is_array($relation->via)) {
-            list($viaRelationName, $viaQuery) = $relation->via;
-            $this->setRelationDependencies($name, $viaQuery, $viaRelationName);
+            [, $viaQuery] = $relation->via;
+            $this->setRelationDependencies($name, $viaQuery);
         }
-    }
-
-    public function afterFind()
-    {
-        $this->trigger(self::EVENT_AFTER_FIND);
     }
 }

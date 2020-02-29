@@ -1,12 +1,16 @@
 <?php
 /**
- * @link      http://www.yiiframework.com/
+ * @link http://www.yiiframework.com/
+ *
  * @copyright Copyright (c) 2008 Yii Software LLC
- * @license   http://www.yiiframework.com/license/
+ * @license http://www.yiiframework.com/license/
  */
+
+declare(strict_types=1);
 
 namespace Lengbin\YiiDb;
 
+use Lengbin\Helper\YiiSoft\ObjectHelper;
 use Lengbin\YiiDb\Exception\InvalidArgumentException;
 
 /**
@@ -15,9 +19,10 @@ use Lengbin\YiiDb\Exception\InvalidArgumentException;
  * @property array $columnNames List of column names. This property is read-only.
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
- * @since  2.0
+ *
+ * @since 2.0
  */
-class TableSchema
+class TableSchema extends ObjectHelper
 {
     /**
      * @var string the name of the schema that this table belongs to.
@@ -29,8 +34,8 @@ class TableSchema
     public $name;
     /**
      * @var string the full name of this table, which includes the schema name prefix, if any.
-     * Note that if the schema name is the same as the [[Schema::defaultSchema|default schema name]],
-     * the schema name will not be included.
+     *             Note that if the schema name is the same as the [[Schema::defaultSchema|default schema name]],
+     *             the schema name will not be included.
      */
     public $fullName;
     /**
@@ -73,6 +78,7 @@ class TableSchema
 
     /**
      * Returns the names of all columns in this table.
+     *
      * @return array list of column names
      */
     public function getColumnNames()
@@ -89,7 +95,7 @@ class TableSchema
      */
     public function fixPrimaryKey($keys)
     {
-        $keys = (array)$keys;
+        $keys = (array) $keys;
         $this->primaryKey = $keys;
         foreach ($this->columns as $column) {
             $column->isPrimaryKey = false;

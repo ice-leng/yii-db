@@ -6,20 +6,13 @@
   "license": "MIT",
   "require": {
     "php": ">=7.2.0",
-    "yiisoft/arrays": "^3.0@dev",
-    "yiisoft/strings": "^3.0@dev"
+    "psr/simple-cache": "^1.0",
+    "lengbin/helper": "dev-master"
   },
   "minimum-stability": "stable",
   "autoload": {
     "psr-4": {
-      "Lengbin\\YiiDb\\": "src",
-      "Lengbin\\YiiDb\\ActiveRecord\\": "src/ActiveRecord",
-      "Lengbin\\YiiDb\\Conditions\\": "src/Conditions",
-      "Lengbin\\YiiDb\\Event\\": "src/Event",
-      "Lengbin\\YiiDb\\Exception\\": "src/Exception",
-      "Lengbin\\YiiDb\\Mysql\\": "src/Mysql",
-      "Lengbin\\YiiDb\\Query\\": "src/Query",
-      "Lengbin\\YiiDb\\Validators\\": "src/Validators"
+      "Lengbin\\YiiDb\\": "src"
     }
   },
   "authors": [

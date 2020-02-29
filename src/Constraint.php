@@ -1,19 +1,25 @@
 <?php
 /**
  * @link http://www.yiiframework.com/
+ *
  * @copyright Copyright (c) 2008 Yii Software LLC
  * @license http://www.yiiframework.com/license/
  */
 
+declare(strict_types=1);
+
 namespace Lengbin\YiiDb;
+
+use Lengbin\Helper\YiiSoft\ObjectHelper;
 
 /**
  * Constraint represents the metadata of a table constraint.
  *
  * @author Sergey Makinen <sergey@makinen.ru>
+ *
  * @since 2.0.13
  */
-class Constraint
+class Constraint extends ObjectHelper
 {
     /**
      * @var string[]|null list of column names the constraint belongs to.
@@ -23,11 +29,4 @@ class Constraint
      * @var string|null the constraint name.
      */
     public $name;
-
-    public function __construct(array $config = [])
-    {
-        foreach ($config as $key => $value) {
-            $this->$key = $value;
-        }
-    }
 }

@@ -5,6 +5,8 @@
  * @license http://www.yiiframework.com/license/
  */
 
+declare(strict_types=1);
+
 namespace Lengbin\YiiDb\ActiveRecord;
 
 /**
@@ -62,7 +64,7 @@ trait ActiveQueryTrait
      * Customer::find()->with('orders.address')->all();
      * // find customers together with their country and orders of status 1
      * Customer::find()->with([
-     *     'orders' => function (\yii\db\ActiveQuery $query) {
+     *     'orders' => function (\Yiisoft\ActiveRecord\ActiveQuery $query) {
      *         $query->andWhere('status = 1');
      *     },
      *     'country',
@@ -79,9 +81,8 @@ trait ActiveQueryTrait
      *
      * @return $this the query object itself
      */
-    public function with()
+    public function with(...$with)
     {
-        $with = func_get_args();
         if (isset($with[0]) && is_array($with[0])) {
             // the parameter is given as an array
             $with = $with[0];
@@ -118,7 +119,6 @@ trait ActiveQueryTrait
             /* @var $class ActiveRecord */
             $class = $this->modelClass;
             foreach ($rows as $row) {
-                $row = (array)$row;
                 $model = $class::instantiate($row);
                 $modelClass = get_class($model);
                 $modelClass::populateRecord($model, $row);

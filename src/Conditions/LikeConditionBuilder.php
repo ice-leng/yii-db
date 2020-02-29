@@ -1,9 +1,12 @@
 <?php
 /**
  * @link http://www.yiiframework.com/
+ *
  * @copyright Copyright (c) 2008 Yii Software LLC
  * @license http://www.yiiframework.com/license/
  */
+
+declare(strict_types=1);
 
 namespace Lengbin\YiiDb\Conditions;
 
@@ -13,9 +16,10 @@ use Lengbin\YiiDb\ExpressionBuilderTrait;
 use Lengbin\YiiDb\ExpressionInterface;
 
 /**
- * Class LikeConditionBuilder builds objects of [[LikeCondition]]
+ * Class LikeConditionBuilder builds objects of [[LikeCondition]].
  *
  * @author Dmytro Naumenko <d.naumenko.a@gmail.com>
+ *
  * @since 2.0.14
  */
 class LikeConditionBuilder implements ExpressionBuilderInterface
@@ -24,27 +28,32 @@ class LikeConditionBuilder implements ExpressionBuilderInterface
 
     /**
      * @var array map of chars to their replacements in LIKE conditions.
-     * By default it's configured to escape `%`, `_` and `\` with `\`.
+     *            By default it's configured to escape `%`, `_` and `\` with `\`.
      */
     protected $escapingReplacements = [
-        '%' => '\%',
-        '_' => '\_',
+        '%'  => '\%',
+        '_'  => '\_',
         '\\' => '\\\\',
     ];
     /**
      * @var string|null character used to escape special characters in LIKE conditions.
-     * By default it's assumed to be `\`.
+     *                  By default it's assumed to be `\`.
      */
     protected $escapeCharacter;
-
 
     /**
      * Method builds the raw SQL from the $expression that will not be additionally
      * escaped or quoted.
      *
      * @param ExpressionInterface|LikeCondition $expression the expression to be built.
-     * @param array $params the binding parameters.
+     * @param array                             $params     the binding parameters.
+     *
      * @return string the raw SQL that will not be additionally escaped or quoted.
+     * @throws InvalidArgumentException
+     * @throws \Lengbin\YiiDb\Exception\Exception
+     * @throws \Lengbin\YiiDb\Exception\InvalidConfigException
+     * @throws \Lengbin\YiiDb\Exception\NotSupportedException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     public function build(ExpressionInterface $expression, array &$params = [])
     {
@@ -56,7 +65,7 @@ class LikeConditionBuilder implements ExpressionBuilderInterface
             $escape = $this->escapingReplacements;
         }
 
-        list($andor, $not, $operator) = $this->parseOperator($operator);
+        [$andor, $not, $operator] = $this->parseOperator($operator);
 
         if (!is_array($values)) {
             $values = [$values];
@@ -76,7 +85,7 @@ class LikeConditionBuilder implements ExpressionBuilderInterface
             if ($value instanceof ExpressionInterface) {
                 $phName = $this->queryBuilder->buildExpression($value, $params);
             } else {
-                $phName = $this->queryBuilder->bindParam(empty($escape) ? $value : ('%' . strtr($value, $escape) . '%'), $params);
+                $phName = $this->queryBuilder->bindParam(empty($escape) ? $value : ('%'.strtr($value, $escape).'%'), $params);
             }
             $parts[] = "{$column} {$operator} {$phName}{$escapeSql}";
         }
@@ -98,14 +107,16 @@ class LikeConditionBuilder implements ExpressionBuilderInterface
 
     /**
      * @param string $operator
+     *
      * @return array
+     * @throws InvalidArgumentException
      */
     protected function parseOperator($operator)
     {
         if (!preg_match('/^(AND |OR |)(((NOT |))I?LIKE)/', $operator, $matches)) {
             throw new InvalidArgumentException("Invalid operator '$operator'.");
         }
-        $andor = ' ' . (!empty($matches[1]) ? $matches[1] : 'AND ');
+        $andor = ' '.(!empty($matches[1]) ? $matches[1] : 'AND ');
         $not = !empty($matches[3]);
         $operator = $matches[2];
 

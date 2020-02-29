@@ -1,21 +1,18 @@
 <?php
 /**
  * @link      http://www.yiiframework.com/
+ *
  * @copyright Copyright (c) 2008 Yii Software LLC
  * @license   http://www.yiiframework.com/license/
  */
 
-namespace Lengbin\YiiDb\Query;
+declare(strict_types=1);
 
-use Lengbin\YiiDb\ActiveRecord\Model;
-use Lengbin\YiiDb\Connection;
-use Lengbin\YiiDb\Exception\Exception;
+namespace Lengbin\YiiDb;
+
+use Lengbin\Helper\YiiSoft\Arrays\ArrayHelper;
 use Lengbin\YiiDb\Exception\InvalidArgumentException;
 use Lengbin\YiiDb\Exception\InvalidConfigException;
-use Lengbin\YiiDb\Expression;
-use Lengbin\YiiDb\ExpressionInterface;
-use Psr\SimpleCache\CacheInterface;
-use Yiisoft\Arrays\ArrayHelper;
 
 /**
  * Query represents a SELECT SQL statement in a way that is independent of DBMS.
@@ -50,42 +47,45 @@ use Yiisoft\Arrays\ArrayHelper;
  *
  * @author Qiang Xue <qiang.xue@gmail.com>
  * @author Carsten Brandt <mail@cebe.cc>
+ *
  * @since  2.0
  */
-class BaseQuery extends Model implements QueryInterface, ExpressionInterface, QueryDbInterface
+class Query extends Component implements QueryInterface, ExpressionInterface
 {
     use QueryTrait;
 
     /**
      * @var array the columns being selected. For example, `['id', 'name']`.
-     * This is used to construct the SELECT clause in a SQL statement. If not set, it means selecting all columns.
+     *            This is used to construct the SELECT clause in a SQL statement. If not set, it means selecting all columns.
+     *
      * @see select()
      */
     public $select;
     /**
      * @var string additional option that should be appended to the 'SELECT' keyword. For example,
-     * in MySQL, the option 'SQL_CALC_FOUND_ROWS' can be used.
+     *             in MySQL, the option 'SQL_CALC_FOUND_ROWS' can be used.
      */
     public $selectOption;
     /**
      * @var bool whether to select distinct rows of data only. If this is set true,
-     * the SELECT clause would be changed to SELECT DISTINCT.
+     *           the SELECT clause would be changed to SELECT DISTINCT.
      */
     public $distinct;
     /**
      * @var array the table(s) to be selected from. For example, `['user', 'post']`.
-     * This is used to construct the FROM clause in a SQL statement.
+     *            This is used to construct the FROM clause in a SQL statement.
+     *
      * @see from()
      */
     public $from;
     /**
      * @var array how to group the query results. For example, `['company', 'department']`.
-     * This is used to construct the GROUP BY clause in a SQL statement.
+     *            This is used to construct the GROUP BY clause in a SQL statement.
      */
     public $groupBy;
     /**
      * @var array how to join with other tables. Each array element represents the specification
-     * of one join which has the following structure:
+     *            of one join which has the following structure:
      *
      * ```php
      * [$joinType, $tableName, $joinCondition]
@@ -103,12 +103,12 @@ class BaseQuery extends Model implements QueryInterface, ExpressionInterface, Qu
     public $join;
     /**
      * @var string|array|ExpressionInterface the condition to be applied in the GROUP BY clause.
-     * It can be either a string or an array. Please refer to [[where()]] on how to specify the condition.
+     *                                       It can be either a string or an array. Please refer to [[where()]] on how to specify the condition.
      */
     public $having;
     /**
      * @var array this is used to construct the UNION clause(s) in a SQL statement.
-     * Each array element is an array of the following structure:
+     *            Each array element is an array of the following structure:
      *
      * - `query`: either a string or a [[Query]] object representing a query
      * - `all`: boolean, whether it should be `UNION ALL` or `UNION`
@@ -116,45 +116,63 @@ class BaseQuery extends Model implements QueryInterface, ExpressionInterface, Qu
     public $union;
     /**
      * @var array list of query parameter values indexed by parameter placeholders.
-     * For example, `[':name' => 'Dan', ':age' => 31]`.
+     *            For example, `[':name' => 'Dan', ':age' => 31]`.
      */
     public $params = [];
-
-    public $tablePrefix = '';
-
-    /** @var int  表结构缓存时间 */
-    public $schemaCacheDuration = 3600;
-
-    private $_driverName = 'mysql';
-
     /**
-     * Returns the name of the DB driver. Based on the the current [[dsn]], in case it was not set explicitly
-     * by an end user.
-     * @return string name of the DB driver
-     */
-    public function getDriverName()
-    {
-        return $this->_driverName;
-    }
-
-    /**
-     * Changes the current driver name.
+     * @var int|true the default number of seconds that query results can remain valid in cache.
+     *               Use 0 to indicate that the cached data will never expire.
+     *               Use a negative number to indicate that query cache should not be used.
+     *               Use boolean `true` to indicate that [[Connection::queryCacheDuration]] should be used.
      *
-     * @param string $driverName name of the DB driver
+     * @see   cache()
+     * @since 2.0.14
      */
-    public function setDriverName($driverName)
+    public $queryCacheDuration;
+    /**
+     * the dependency to be associated with the cached query result for this query
+     *
+     * @see   cache()
+     * @since 2.0.14
+     */
+    public $queryCacheDependency;
+
+
+    private $_db;
+
+    public function __construct(array $config = [], ConnectionInterface $connection = null)
     {
-        $this->_driverName = strtolower($driverName);
+        // 基于 hyperf make
+        if (is_null($connection) && function_exists('make')) {
+            $connection = make(ConnectionInterface::class);
+        }
+        $this->_db = $connection;
+        parent::__construct($config);
     }
 
-    public function getConnect()
+    /**
+     * Creates a DB command that can be used to execute this query.
+     *
+     * @param Connection $db the database connection used to generate the SQL statement.
+     *                       If this parameter is not given, the `db` application component will be used.
+     *
+     * @return Command the created DB command instance.
+     * @throws Exception\Exception
+     * @throws Exception\NotSupportedException
+     * @throws InvalidConfigException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     */
+    public function createCommand($db = null)
     {
-        return new Connection($this, $this->_driverName, $this->tablePrefix, $this->schemaCacheDuration);
-    }
+        if ($db === null) {
+            $db = $this->_db;
+        }
+        [$sql, $params] = $db->getQueryBuilder()->build($this);
 
-    public function buildSql()
-    {
-        return $this->getConnect()->getQueryBuilder()->build();
+        $command = $db->createCommand($sql, $params);
+        $this->setCommandCache($command);
+
+        return $command;
     }
 
     /**
@@ -172,94 +190,85 @@ class BaseQuery extends Model implements QueryInterface, ExpressionInterface, Qu
     }
 
     /**
-     * 查询所有
+     * Starts a batch query.
      *
-     * @param string $sql
-     * @param array  $params
+     * A batch query supports fetching data in batches, which can keep the memory usage under a limit.
+     * This method will return a [[BatchQueryResult]] object which implements the [[\Iterator]] interface
+     * and can be traversed to retrieve the data in batches.
      *
-     * @return array
-     * @throws Exception
+     * For example,
+     *
+     * ```php
+     * $query = (new Query)->from('user');
+     * foreach ($query->batch() as $rows) {
+     *     // $rows is an array of 100 or fewer rows from user table
+     * }
+     * ```
+     *
+     * @param int        $batchSize the number of records to be fetched in each batch.
+     * @param Connection $db        the database connection. If not set, the "db" application component will be used.
+     *
+     * @return BatchQueryResult the batch query result. It implements the [[\Iterator]] interface
+     *                          and can be traversed to retrieve the data in batches.
      */
-    public function query(string $sql, array $params = [])
+    public function batch($batchSize = 100, $db = null)
     {
-        throw new Exception('Please Implementation This Method');
+        return new BatchQueryResult([
+            'query'     => $this,
+            'batchSize' => $batchSize,
+            'db'        => $db,
+            'each'      => false,
+        ]);
     }
 
     /**
+     * Starts a batch query and retrieves data row by row.
      *
-     * 查询一条
+     * This method is similar to [[batch()]] except that in each iteration of the result,
+     * only one row of data is returned. For example,
      *
-     * @param string $sql
-     * @param array  $params
+     * ```php
+     * $query = (new Query)->from('user');
+     * foreach ($query->each() as $row) {
+     * }
+     * ```
      *
-     * @return array
-     * @throws Exception
+     * @param int        $batchSize the number of records to be fetched in each batch.
+     * @param Connection $db        the database connection. If not set, the "db" application component will be used.
+     *
+     * @return BatchQueryResult the batch query result. It implements the [[\Iterator]] interface
+     *                          and can be traversed to retrieve the data in batches.
      */
-    public function queryOne(string $sql, array $params = [])
+    public function each($batchSize = 100, $db = null)
     {
-        throw new Exception('Please Implementation This Method');
-    }
-
-    public function execute(string $sql, array $params = [])
-    {
-        throw new Exception('Please Implementation This Method');
-    }
-
-    public function lastInsertId($sequenceName = '')
-    {
-        throw new Exception('Please Implementation This Method');
-    }
-
-    /**
-     * 数据库连接唯一标识， 随便定义
-     * 为了防止多库导致表名相同导致缓存数据覆盖
-     * 用于缓存表字段（表结构）
-     */
-    public function databaseUniqueId()
-    {
-        throw new Exception('Please Implementation This Method');
-    }
-
-    /**
-     * 缓存类，用于缓存表字段（表结构），需要实现 CacheInterface
-     * 默认为 空 ， 不开启
-     * 如果不开启， 每次表操作 都会去查询一次表结构
-     * 如果 使用 activeRecode,  当缓存的字段 和 attributeLabels 字段不一致， 将自动更新缓存
-     *
-     * @return CacheInterface
-     */
-    public function getSchemaCache()
-    {
-        throw new Exception('Please Implementation This Method');
-    }
-
-    public function beginTransaction()
-    {
-        throw new Exception('Please Implementation This Method');
-    }
-
-    public function commit()
-    {
-        throw new Exception('Please Implementation This Method');
-    }
-
-    public function rollBack()
-    {
-        throw new Exception('Please Implementation This Method');
+        return new BatchQueryResult([
+            'query'     => $this,
+            'batchSize' => $batchSize,
+            'db'        => $db,
+            'each'      => true,
+        ]);
     }
 
     /**
      * Executes the query and returns all results as an array.
      *
+     * @param Connection $db the database connection used to generate the SQL statement.
+     *                       If this parameter is not given, the `db` application component will be used.
+     *
      * @return array the query results. If the query results in nothing, an empty array will be returned.
+     * @throws Exception\Exception
+     * @throws Exception\NotSupportedException
+     * @throws InvalidConfigException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \Throwable
      */
-    public function all()
+    public function all($db = null)
     {
         if ($this->emulateExecution) {
             return [];
         }
-        list($sql, $params) = $this->buildSql();
-        $rows = $this->query($sql, $params);
+        $rows = $this->createCommand($db)->queryAll();
+
         return $this->populate($rows);
     }
 
@@ -288,31 +297,71 @@ class BaseQuery extends Model implements QueryInterface, ExpressionInterface, Qu
     /**
      * Executes the query and returns a single row of result.
      *
+     * @param Connection $db the database connection used to generate the SQL statement.
+     *                       If this parameter is not given, the `db` application component will be used.
+     *
      * @return array|bool the first row (in terms of an array) of the query result. False is returned if the query
-     * results in nothing.
+     *                    results in nothing.
+     * @throws Exception\Exception
+     * @throws Exception\NotSupportedException
+     * @throws InvalidConfigException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \Throwable
      */
-    public function one()
+    public function one($db = null)
     {
         if ($this->emulateExecution) {
             return false;
         }
-        list($sql, $params) = $this->buildSql();
-        return $this->queryOne($sql, $params);
+
+        return $this->createCommand($db)->queryOne();
     }
 
-    public function columnByData(array $rows = [])
+    /**
+     * Returns the query result as a scalar value.
+     * The value returned will be the first column in the first row of the query results.
+     *
+     * @param Connection $db the database connection used to generate the SQL statement.
+     *                       If this parameter is not given, the `db` application component will be used.
+     *
+     * @return string|null|false the value of the first column in the first row of the query result.
+     *                           False is returned if the query result is empty.
+     * @throws Exception\Exception
+     * @throws Exception\NotSupportedException
+     * @throws InvalidConfigException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \Throwable
+     */
+    public function scalar($db = null)
+    {
+        if ($this->emulateExecution) {
+            return null;
+        }
+
+        return $this->createCommand($db)->queryScalar();
+    }
+
+    /**
+     * Executes the query and returns the first column of the result.
+     *
+     * @param Connection $db the database connection used to generate the SQL statement.
+     *                       If this parameter is not given, the `db` application component will be used.
+     *
+     * @return array the first column of the query result. An empty array is returned if the query results in nothing.
+     * @throws Exception\Exception
+     * @throws Exception\NotSupportedException
+     * @throws InvalidConfigException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \Throwable
+     */
+    public function column($db = null)
     {
         if ($this->emulateExecution) {
             return [];
         }
 
         if ($this->indexBy === null) {
-            $results = [];
-            foreach ($rows as $row) {
-                $value = reset($row);
-                $results[] = $value;
-            }
-            return $results;
+            return $this->createCommand($db)->queryColumn();
         }
 
         if (is_string($this->indexBy) && is_array($this->select) && count($this->select) === 1) {
@@ -322,7 +371,7 @@ class BaseQuery extends Model implements QueryInterface, ExpressionInterface, Qu
                 $this->select[] = $this->indexBy;
             }
         }
-
+        $rows = $this->createCommand($db)->queryAll();
         $results = [];
         foreach ($rows as $row) {
             $value = reset($row);
@@ -338,93 +387,116 @@ class BaseQuery extends Model implements QueryInterface, ExpressionInterface, Qu
     }
 
     /**
-     * Executes the query and returns the first column of the result.
-     *
-     *
-     * @return array the first column of the query result. An empty array is returned if the query results in nothing.
-     */
-    public function column()
-    {
-        $rows = $this->all();
-        return $this->columnByData($rows);
-    }
-
-    /**
      * Returns the number of records.
      *
-     * @param string $q      the COUNT expression. Defaults to '*'.
+     * @param string     $q  the COUNT expression. Defaults to '*'.
      *                       Make sure you properly [quote](guide:db-dao#quoting-table-and-column-names) column names in the expression.
+     * @param Connection $db the database connection used to generate the SQL statement.
+     *                       If this parameter is not given (or null), the `db` application component will be used.
      *
      * @return int|string number of records. The result may be a string depending on the
-     * underlying database engine and to support integer values higher than a 32bit PHP integer can handle.
+     *                    underlying database engine and to support integer values higher than a 32bit PHP integer can handle.
+     * @throws Exception\Exception
+     * @throws Exception\NotSupportedException
+     * @throws InvalidConfigException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \Throwable
      */
-    public function count($q = '*')
+    public function count($q = '*', $db = null)
     {
         if ($this->emulateExecution) {
             return 0;
         }
 
-        return $this->queryScalar("COUNT($q)");
+        return $this->queryScalar("COUNT($q)", $db);
     }
 
     /**
      * Returns the sum of the specified column values.
      *
-     * @param string $q      the column name or expression.
+     * @param string     $q  the column name or expression.
      *                       Make sure you properly [quote](guide:db-dao#quoting-table-and-column-names) column names in the expression.
+     * @param Connection $db the database connection used to generate the SQL statement.
+     *                       If this parameter is not given, the `db` application component will be used.
      *
      * @return mixed the sum of the specified column values.
+     * @throws Exception\Exception
+     * @throws Exception\NotSupportedException
+     * @throws InvalidConfigException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \Throwable
      */
-    public function sum($q)
+    public function sum($q, $db = null)
     {
         if ($this->emulateExecution) {
             return 0;
         }
 
-        return $this->queryScalar("SUM($q)");
+        return $this->queryScalar("SUM($q)", $db);
     }
 
     /**
      * Returns the average of the specified column values.
      *
-     * @param string $q      the column name or expression.
+     * @param string     $q  the column name or expression.
      *                       Make sure you properly [quote](guide:db-dao#quoting-table-and-column-names) column names in the expression.
+     * @param Connection $db the database connection used to generate the SQL statement.
+     *                       If this parameter is not given, the `db` application component will be used.
      *
      * @return mixed the average of the specified column values.
+     * @throws Exception\Exception
+     * @throws Exception\NotSupportedException
+     * @throws InvalidConfigException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \Throwable
      */
-    public function average($q)
+    public function average($q, $db = null)
     {
         if ($this->emulateExecution) {
             return 0;
         }
 
-        return $this->queryScalar("AVG($q)");
+        return $this->queryScalar("AVG($q)", $db);
     }
 
     /**
      * Returns the minimum of the specified column values.
      *
-     * @param string $q      the column name or expression.
+     * @param string     $q  the column name or expression.
      *                       Make sure you properly [quote](guide:db-dao#quoting-table-and-column-names) column names in the expression.
+     * @param Connection $db the database connection used to generate the SQL statement.
+     *                       If this parameter is not given, the `db` application component will be used.
      *
      * @return mixed the minimum of the specified column values.
+     * @throws Exception\Exception
+     * @throws Exception\NotSupportedException
+     * @throws InvalidConfigException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \Throwable
      */
-    public function min($q)
+    public function min($q, $db = null)
     {
-        return $this->queryScalar("MIN($q)");
+        return $this->queryScalar("MIN($q)", $db);
     }
 
     /**
      * Returns the maximum of the specified column values.
      *
-     * @param string $q      the column name or expression.
+     * @param string     $q  the column name or expression.
      *                       Make sure you properly [quote](guide:db-dao#quoting-table-and-column-names) column names in the expression.
+     * @param Connection $db the database connection used to generate the SQL statement.
+     *                       If this parameter is not given, the `db` application component will be used.
      *
      * @return mixed the maximum of the specified column values.
+     * @throws Exception\Exception
+     * @throws Exception\NotSupportedException
+     * @throws InvalidConfigException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \Throwable
      */
-    public function max($q)
+    public function max($q, $db = null)
     {
-        return $this->queryScalar("MAX($q)");
+        return $this->queryScalar("MAX($q)", $db);
     }
 
     /**
@@ -434,15 +506,23 @@ class BaseQuery extends Model implements QueryInterface, ExpressionInterface, Qu
      *                       If this parameter is not given, the `db` application component will be used.
      *
      * @return bool whether the query result contains any row of data.
+     * @throws Exception\Exception
+     * @throws Exception\NotSupportedException
+     * @throws InvalidConfigException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \Throwable
      */
-    public function exists()
+    public function exists($db = null)
     {
         if ($this->emulateExecution) {
             return false;
         }
-        list($sql, $params) = $this->buildSql();
-        $sql = $this->getConnect()->getQueryBuilder()->selectExists($sql);
-        return (bool)$this->queryOne($sql, $params);
+        $command = $this->createCommand($db);
+        $params = $command->params;
+        $command->setSql($command->db->getQueryBuilder()->selectExists($command->getSql()));
+        $command->bindValues($params);
+
+        return (bool)$command->queryScalar();
     }
 
     /**
@@ -450,10 +530,16 @@ class BaseQuery extends Model implements QueryInterface, ExpressionInterface, Qu
      * Restores the value of select to make this query reusable.
      *
      * @param string|ExpressionInterface $selectExpression
+     * @param Connection|null            $db
      *
-     * @return bool|string
+     * @return bool|string|void
+     * @throws Exception\Exception
+     * @throws Exception\NotSupportedException
+     * @throws InvalidConfigException
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     * @throws \Throwable
      */
-    public function queryScalar($selectExpression)
+    protected function queryScalar($selectExpression, $db)
     {
         if ($this->emulateExecution) {
             return null;
@@ -469,30 +555,31 @@ class BaseQuery extends Model implements QueryInterface, ExpressionInterface, Qu
             $this->orderBy = null;
             $this->limit = null;
             $this->offset = null;
-            list($sql, $params) = $this->buildSql();
+            $command = $this->createCommand($db);
 
             $this->select = $select;
             $this->orderBy = $order;
             $this->limit = $limit;
             $this->offset = $offset;
-        } else {
-            list($sql, $params) = (new self())->select([$selectExpression])->from(['c' => $this])->buildSql();
-        }
-        return $this->scalar($sql, $params);
-    }
 
-    public function scalar(string $sql, array $params = [])
-    {
-        $data = $this->queryOne($sql, $params);
-        return $data ? reset($data) : 0;
+            return $command->queryScalar();
+        }
+
+        $command = (new self())->select([$selectExpression])->from(['c' => $this])->createCommand($db);
+        $this->setCommandCache($command);
+
+        return $command->queryScalar();
     }
 
     /**
      * Returns table names used in [[from]] indexed by aliases.
      * Both aliases and names are enclosed into {{ and }}.
+     *
      * @return string[] table names indexed by aliases
-     * @throws InvalidConfigException
-     * @since 2.0.12
+     *
+     * @throws InvalidArgumentException
+     *
+     * @throws InvalidConfigException*@since 2.0.12
      */
     public function getTablesUsedInFrom()
     {
@@ -520,6 +607,8 @@ class BaseQuery extends Model implements QueryInterface, ExpressionInterface, Qu
      * @param array $tableNames non-empty array
      *
      * @return string[] table names indexed by aliases
+     *
+     * @throws InvalidArgumentException
      * @since 2.0.14
      */
     protected function cleanUpTableNames($tableNames)
@@ -583,7 +672,7 @@ PATTERN;
     }
 
     /**
-     * Ensures name is wrapped with {{ and }}
+     * Ensures name is wrapped with {{ and }}.
      *
      * @param string $name
      *
@@ -617,7 +706,6 @@ PATTERN;
      *
      * Starting from version 2.0.1, you may also select sub-queries as columns by specifying each such column
      * as a `Query` instance representing the sub-query.
-     *
      * @param string                           $option  additional option that should be appended to the 'SELECT' keyword. For example,
      *                                                  in MySQL, the option 'SQL_CALC_FOUND_ROWS' can be used.
      *
@@ -625,8 +713,17 @@ PATTERN;
      */
     public function select($columns, $option = null)
     {
-        $this->select = $this->normalizeSelect($columns);
+        if ($columns instanceof ExpressionInterface) {
+            $columns = [$columns];
+        } elseif (!is_array($columns)) {
+            $columns = preg_split('/\s*,\s*/', trim($columns), -1, PREG_SPLIT_NO_EMPTY);
+        }
+        // this sequantial assignment is needed in order to make sure select is being reset
+        // before using getUniqueColumns() that checks it
+        $this->select = [];
+        $this->select = $this->getUniqueColumns($columns);
         $this->selectOption = $option;
+
         return $this;
     }
 
@@ -644,60 +741,80 @@ PATTERN;
      *                                                  details about the format of this parameter.
      *
      * @return $this the query object itself
+     *
      * @see select()
      */
     public function addSelect($columns)
-    {
-        if ($this->select === null) {
-            return $this->select($columns);
-        }
-        if (!is_array($this->select)) {
-            $this->select = $this->normalizeSelect($this->select);
-        }
-        $this->select = array_merge($this->select, $this->normalizeSelect($columns));
-
-        return $this;
-    }
-
-    /**
-     * Normalizes the SELECT columns passed to [[select()]] or [[addSelect()]].
-     *
-     * @param string|array|ExpressionInterface $columns
-     *
-     * @return array
-     * @since 2.0.21
-     */
-    protected function normalizeSelect($columns)
     {
         if ($columns instanceof ExpressionInterface) {
             $columns = [$columns];
         } elseif (!is_array($columns)) {
             $columns = preg_split('/\s*,\s*/', trim($columns), -1, PREG_SPLIT_NO_EMPTY);
         }
-        $select = [];
-        foreach ($columns as $columnAlias => $columnDefinition) {
-            if (is_string($columnAlias)) {
-                // Already in the normalized format, good for them
-                $select[$columnAlias] = $columnDefinition;
-                continue;
-            }
-            if (is_string($columnDefinition)) {
-                if (preg_match('/^(.*?)(?i:\s+as\s+|\s+)([\w\-_\.]+)$/', $columnDefinition, $matches) && !preg_match('/^\d+$/',
-                        $matches[2]) && strpos($matches[2], '.') === false) {
-                    // Using "columnName as alias" or "columnName alias" syntax
-                    $select[$matches[2]] = $matches[1];
-                    continue;
-                }
-                if (strpos($columnDefinition, '(') === false) {
-                    // Normal column name, just alias it to itself to ensure it's not selected twice
-                    $select[$columnDefinition] = $columnDefinition;
-                    continue;
-                }
-            }
-            // Either a string calling a function, DB expression, or sub-query
-            $select[] = $columnDefinition;
+        $columns = $this->getUniqueColumns($columns);
+        if ($this->select === null) {
+            $this->select = $columns;
+        } else {
+            $this->select = array_merge($this->select, $columns);
         }
-        return $select;
+
+        return $this;
+    }
+
+    /**
+     * Returns unique column names excluding duplicates.
+     * Columns to be removed:
+     * - if column definition already present in SELECT part with same alias
+     * - if column definition without alias already present in SELECT part without alias too.
+     *
+     * @param array $columns the columns to be merged to the select.
+     *
+     * @since 2.0.14
+     */
+    protected function getUniqueColumns($columns)
+    {
+        $unaliasedColumns = $this->getUnaliasedColumnsFromSelect();
+
+        $result = [];
+        foreach ($columns as $columnAlias => $columnDefinition) {
+            if (!$columnDefinition instanceof self) {
+                if (is_string($columnAlias)) {
+                    $existsInSelect = isset($this->select[$columnAlias]) && $this->select[$columnAlias] === $columnDefinition;
+                    if ($existsInSelect) {
+                        continue;
+                    }
+                } elseif (is_int($columnAlias)) {
+                    $existsInSelect = in_array($columnDefinition, $unaliasedColumns, true);
+                    $existsInResultSet = in_array($columnDefinition, $result, true);
+                    if ($existsInSelect || $existsInResultSet) {
+                        continue;
+                    }
+                }
+            }
+
+            $result[$columnAlias] = $columnDefinition;
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array List of columns without aliases from SELECT statement.
+     *
+     * @since 2.0.14
+     */
+    protected function getUnaliasedColumnsFromSelect()
+    {
+        $result = [];
+        if (is_array($this->select)) {
+            foreach ($this->select as $name => $value) {
+                if (is_int($name)) {
+                    $result[] = $value;
+                }
+            }
+        }
+
+        return array_unique($result);
     }
 
     /**
@@ -710,6 +827,7 @@ PATTERN;
     public function distinct($value = true)
     {
         $this->distinct = $value;
+
         return $this;
     }
 
@@ -734,29 +852,30 @@ PATTERN;
      *
      * ```php
      * // SELECT * FROM  `user` `u`, `profile`;
-     * $query = (new \yii\db\Query)->from(['u' => 'user', 'profile']);
+     * $query = (new \Yiisoft\Db\Query)->from(['u' => 'user', 'profile']);
      *
      * // SELECT * FROM (SELECT * FROM `user` WHERE `active` = 1) `activeusers`;
-     * $subquery = (new \yii\db\Query)->from('user')->where(['active' => true])
-     * $query = (new \yii\db\Query)->from(['activeusers' => $subquery]);
+     * $subquery = (new \Yiisoft\Db\Query)->from('user')->where(['active' => true])
+     * $query = (new \Yiisoft\Db\Query)->from(['activeusers' => $subquery]);
      *
      * // subquery can also be a string with plain SQL wrapped in parenthesis
      * // SELECT * FROM (SELECT * FROM `user` WHERE `active` = 1) `activeusers`;
      * $subquery = "(SELECT * FROM `user` WHERE `active` = 1)";
-     * $query = (new \yii\db\Query)->from(['activeusers' => $subquery]);
+     * $query = (new \Yiisoft\Db\Query)->from(['activeusers' => $subquery]);
      * ```
      *
      * @return $this the query object itself
      */
     public function from($tables)
     {
-        if ($tables instanceof ExpressionInterface) {
+        if ($tables instanceof Expression) {
             $tables = [$tables];
         }
         if (is_string($tables)) {
             $tables = preg_split('/\s*,\s*/', trim($tables), -1, PREG_SPLIT_NO_EMPTY);
         }
         $this->from = $tables;
+
         return $this;
     }
 
@@ -774,6 +893,7 @@ PATTERN;
      * @param array                            $params    the parameters (name => value) to be bound to the query.
      *
      * @return $this the query object itself
+     *
      * @see andWhere()
      * @see orWhere()
      * @see QueryInterface::where()
@@ -782,6 +902,7 @@ PATTERN;
     {
         $this->where = $condition;
         $this->addParams($params);
+
         return $this;
     }
 
@@ -794,6 +915,7 @@ PATTERN;
      * @param array                            $params    the parameters (name => value) to be bound to the query.
      *
      * @return $this the query object itself
+     *
      * @see where()
      * @see orWhere()
      */
@@ -807,6 +929,7 @@ PATTERN;
             $this->where = ['and', $this->where, $condition];
         }
         $this->addParams($params);
+
         return $this;
     }
 
@@ -819,6 +942,7 @@ PATTERN;
      * @param array                            $params    the parameters (name => value) to be bound to the query.
      *
      * @return $this the query object itself
+     *
      * @see where()
      * @see andWhere()
      */
@@ -830,6 +954,7 @@ PATTERN;
             $this->where = ['or', $this->where, $condition];
         }
         $this->addParams($params);
+
         return $this;
     }
 
@@ -858,6 +983,7 @@ PATTERN;
      *                                Defaults to `=`, performing an exact match.
      *
      * @return $this The query object itself
+     *
      * @since 2.0.8
      */
     public function andFilterCompare($name, $value, $defaultOperator = '=')
@@ -887,7 +1013,6 @@ PATTERN;
      * Use an array to represent joining with a sub-query. The array must contain only one element.
      * The value must be a [[Query]] object representing the sub-query while the corresponding key
      * represents the alias for the sub-query.
-     *
      * @param string|array $on     the join condition that should appear in the ON part.
      *                             Please refer to [[where()]] on how to specify this parameter.
      *
@@ -899,7 +1024,6 @@ PATTERN;
      * ```php
      * 'post.author_id = user.id'
      * ```
-     *
      * @param array        $params the parameters (name => value) to be bound to the query.
      *
      * @return $this the query object itself
@@ -907,6 +1031,7 @@ PATTERN;
     public function join($type, $table, $on = '', $params = [])
     {
         $this->join[] = [$type, $table, $on];
+
         return $this->addParams($params);
     }
 
@@ -923,7 +1048,6 @@ PATTERN;
      * Use an array to represent joining with a sub-query. The array must contain only one element.
      * The value must be a [[Query]] object representing the sub-query while the corresponding key
      * represents the alias for the sub-query.
-     *
      * @param string|array $on     the join condition that should appear in the ON part.
      *                             Please refer to [[join()]] on how to specify this parameter.
      * @param array        $params the parameters (name => value) to be bound to the query.
@@ -933,6 +1057,7 @@ PATTERN;
     public function innerJoin($table, $on = '', $params = [])
     {
         $this->join[] = ['INNER JOIN', $table, $on];
+
         return $this->addParams($params);
     }
 
@@ -949,7 +1074,6 @@ PATTERN;
      * Use an array to represent joining with a sub-query. The array must contain only one element.
      * The value must be a [[Query]] object representing the sub-query while the corresponding key
      * represents the alias for the sub-query.
-     *
      * @param string|array $on     the join condition that should appear in the ON part.
      *                             Please refer to [[join()]] on how to specify this parameter.
      * @param array        $params the parameters (name => value) to be bound to the query
@@ -959,6 +1083,7 @@ PATTERN;
     public function leftJoin($table, $on = '', $params = [])
     {
         $this->join[] = ['LEFT JOIN', $table, $on];
+
         return $this->addParams($params);
     }
 
@@ -975,7 +1100,6 @@ PATTERN;
      * Use an array to represent joining with a sub-query. The array must contain only one element.
      * The value must be a [[Query]] object representing the sub-query while the corresponding key
      * represents the alias for the sub-query.
-     *
      * @param string|array $on     the join condition that should appear in the ON part.
      *                             Please refer to [[join()]] on how to specify this parameter.
      * @param array        $params the parameters (name => value) to be bound to the query
@@ -985,6 +1109,7 @@ PATTERN;
     public function rightJoin($table, $on = '', $params = [])
     {
         $this->join[] = ['RIGHT JOIN', $table, $on];
+
         return $this->addParams($params);
     }
 
@@ -1004,6 +1129,7 @@ PATTERN;
      * Since version 2.0.14, an [[ExpressionInterface]] object can be passed as well.
      *
      * @return $this the query object itself
+     *
      * @see addGroupBy()
      */
     public function groupBy($columns)
@@ -1014,16 +1140,17 @@ PATTERN;
             $columns = preg_split('/\s*,\s*/', trim($columns), -1, PREG_SPLIT_NO_EMPTY);
         }
         $this->groupBy = $columns;
+
         return $this;
     }
 
     /**
      * Adds additional group-by columns to the existing ones.
      *
-     * @param string|array|ExpressionInterface $columns additional columns to be grouped by.
-     *                                                  Columns can be specified in either a string (e.g. "id, name") or an array (e.g. ['id', 'name']).
-     *                                                  The method will automatically quote the column names unless a column contains some parenthesis
-     *                                                  (which means the column contains a DB expression).
+     * @param string|array $columns additional columns to be grouped by.
+     *                              Columns can be specified in either a string (e.g. "id, name") or an array (e.g. ['id', 'name']).
+     *                              The method will automatically quote the column names unless a column contains some parenthesis
+     *                              (which means the column contains a DB expression).
      *
      * Note that if your group-by is an expression containing commas, you should always use an array
      * to represent the group-by information. Otherwise, the method will not be able to correctly determine
@@ -1033,6 +1160,7 @@ PATTERN;
      * Since version 2.0.14, an [[ExpressionInterface]] object can be passed as well.
      *
      * @return $this the query object itself
+     *
      * @see groupBy()
      */
     public function addGroupBy($columns)
@@ -1059,6 +1187,7 @@ PATTERN;
      * @param array                            $params    the parameters (name => value) to be bound to the query.
      *
      * @return $this the query object itself
+     *
      * @see andHaving()
      * @see orHaving()
      */
@@ -1066,6 +1195,7 @@ PATTERN;
     {
         $this->having = $condition;
         $this->addParams($params);
+
         return $this;
     }
 
@@ -1078,6 +1208,7 @@ PATTERN;
      * @param array                            $params    the parameters (name => value) to be bound to the query.
      *
      * @return $this the query object itself
+     *
      * @see having()
      * @see orHaving()
      */
@@ -1089,6 +1220,7 @@ PATTERN;
             $this->having = ['and', $this->having, $condition];
         }
         $this->addParams($params);
+
         return $this;
     }
 
@@ -1101,6 +1233,7 @@ PATTERN;
      * @param array                            $params    the parameters (name => value) to be bound to the query.
      *
      * @return $this the query object itself
+     *
      * @see having()
      * @see andHaving()
      */
@@ -1112,6 +1245,7 @@ PATTERN;
             $this->having = ['or', $this->having, $condition];
         }
         $this->addParams($params);
+
         return $this;
     }
 
@@ -1139,6 +1273,7 @@ PATTERN;
      *                         See [[having()]] on how to specify this parameter.
      *
      * @return $this the query object itself
+     *
      * @see   having()
      * @see   andFilterHaving()
      * @see   orFilterHaving()
@@ -1166,6 +1301,7 @@ PATTERN;
      *                         on how to specify this parameter.
      *
      * @return $this the query object itself
+     *
      * @see   filterHaving()
      * @see   orFilterHaving()
      * @since 2.0.11
@@ -1192,6 +1328,7 @@ PATTERN;
      *                         on how to specify this parameter.
      *
      * @return $this the query object itself
+     *
      * @see   filterHaving()
      * @see   andFilterHaving()
      * @since 2.0.11
@@ -1209,14 +1346,15 @@ PATTERN;
     /**
      * Appends a SQL statement using UNION operator.
      *
-     * @param string|BaseQuery $sql the SQL statement to be appended using UNION
-     * @param bool             $all TRUE if using UNION ALL and FALSE if using UNION
+     * @param string|Query $sql the SQL statement to be appended using UNION
+     * @param bool         $all TRUE if using UNION ALL and FALSE if using UNION
      *
      * @return $this the query object itself
      */
     public function union($sql, $all = false)
     {
         $this->union[] = ['query' => $sql, 'all' => $all];
+
         return $this;
     }
 
@@ -1227,11 +1365,13 @@ PATTERN;
      *                      For example, `[':name' => 'Dan', ':age' => 31]`.
      *
      * @return $this the query object itself
+     *
      * @see addParams()
      */
     public function params($params)
     {
         $this->params = $params;
+
         return $this;
     }
 
@@ -1242,6 +1382,7 @@ PATTERN;
      *                      For example, `[':name' => 'Dan', ':age' => 31]`.
      *
      * @return $this the query object itself
+     *
      * @see params()
      */
     public function addParams($params)
@@ -1264,17 +1405,71 @@ PATTERN;
     }
 
     /**
+     * Enables query cache for this Query.
+     *
+     * @param int|true $duration                             the number of seconds that query results can remain valid in cache.
+     *                                                       Use 0 to indicate that the cached data will never expire.
+     *                                                       Use a negative number to indicate that query cache should not be used.
+     *                                                       Use boolean `true` to indicate that [[Connection::queryCacheDuration]] should be used.
+     *                                                       Defaults to `true`.
+     * @param null     $dependency                           the cache dependency associated with the cached result.
+     *
+     * @return $this the Query object itself
+     *
+     * @since 2.0.14
+     */
+    public function cache($duration = true, $dependency = null)
+    {
+        $this->queryCacheDuration = $duration;
+        $this->queryCacheDependency = $dependency;
+
+        return $this;
+    }
+
+    /**
+     * Disables query cache for this Query.
+     *
+     * @return $this the Query object itself
+     *
+     * @since 2.0.14
+     */
+    public function noCache()
+    {
+        $this->queryCacheDuration = -1;
+
+        return $this;
+    }
+
+    /**
+     * Sets $command cache, if this query has enabled caching.
+     *
+     * @param Command $command
+     *
+     * @return Command
+     *
+     * @since 2.0.14
+     */
+    protected function setCommandCache($command)
+    {
+        if ($this->queryCacheDuration !== null || $this->queryCacheDependency !== null) {
+            $duration = $this->queryCacheDuration === true ? null : $this->queryCacheDuration;
+            $command->cache($duration, $this->queryCacheDependency);
+        }
+
+        return $command;
+    }
+
+    /**
      * Creates a new Query object and copies its property values from an existing one.
      * The properties being copies are the ones to be used by query builders.
      *
-     * @param BaseQuery $from the source query object
+     * @param Query $from the source query object
      *
-     * @return BaseQuery the new Query object
+     * @return Query the new Query object
      */
     public static function create($from)
     {
-        $query = new self();
-        return self::configure($query, [
+        return new self([
             'where'        => $from->where,
             'limit'        => $from->limit,
             'offset'       => $from->offset,
@@ -1292,17 +1487,9 @@ PATTERN;
         ]);
     }
 
-    public static function configure($object, $properties)
-    {
-        foreach ($properties as $name => $value) {
-            $object->$name = $value;
-        }
-
-        return $object;
-    }
-
     /**
-     * Returns the SQL representation of Query
+     * Returns the SQL representation of Query.
+     *
      * @return string
      */
     public function __toString()

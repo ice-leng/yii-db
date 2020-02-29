@@ -1,9 +1,12 @@
 <?php
 /**
  * @link http://www.yiiframework.com/
+ *
  * @copyright Copyright (c) 2008 Yii Software LLC
  * @license http://www.yiiframework.com/license/
  */
+
+declare(strict_types=1);
 
 namespace Lengbin\YiiDb\Conditions;
 
@@ -13,12 +16,13 @@ use Lengbin\YiiDb\Exception\InvalidArgumentException;
  * Class BetweenCondition represents a `BETWEEN` condition.
  *
  * @author Dmytro Naumenko <d.naumenko.a@gmail.com>
+ *
  * @since 2.0.14
  */
 class BetweenCondition implements ConditionInterface
 {
     /**
-     * @var string $operator the operator to use (e.g. `BETWEEN` or `NOT BETWEEN`)
+     * @var string the operator to use (e.g. `BETWEEN` or `NOT BETWEEN`)
      */
     private $operator;
     /**
@@ -34,14 +38,13 @@ class BetweenCondition implements ConditionInterface
      */
     private $intervalEnd;
 
-
     /**
      * Creates a condition with the `BETWEEN` operator.
      *
-     * @param mixed $column the literal to the left of $operator
-     * @param string $operator the operator to use (e.g. `BETWEEN` or `NOT BETWEEN`)
-     * @param mixed $intervalStart beginning of the interval
-     * @param mixed $intervalEnd end of the interval
+     * @param mixed  $column        the literal to the left of $operator
+     * @param string $operator      the operator to use (e.g. `BETWEEN` or `NOT BETWEEN`)
+     * @param mixed  $intervalStart beginning of the interval
+     * @param mixed  $intervalEnd   end of the interval
      */
     public function __construct($column, $operator, $intervalStart, $intervalEnd)
     {
@@ -85,6 +88,7 @@ class BetweenCondition implements ConditionInterface
 
     /**
      * {@inheritdoc}
+     *
      * @throws InvalidArgumentException if wrong number of operands have been given.
      */
     public static function fromArrayDefinition($operator, $operands)

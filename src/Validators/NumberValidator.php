@@ -7,7 +7,7 @@
 
 namespace Lengbin\YiiDb\Validators;
 
-use Yiisoft\Strings\StringHelper;
+use Lengbin\Helper\YiiSoft\StringHelper;
 
 /**
  * NumberValidator validates that the attribute value is a number.

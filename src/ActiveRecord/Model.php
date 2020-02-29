@@ -1,60 +1,20 @@
 <?php
-/**
- * @link http://www.yiiframework.com/
- * @copyright Copyright (c) 2008 Yii Software LLC
- * @license http://www.yiiframework.com/license/
- */
 
 namespace Lengbin\YiiDb\ActiveRecord;
 
-use Lengbin\YiiDb\Event\Event;
-use Lengbin\YiiDb\Event\ModelEvent;
+use Lengbin\Helper\YiiSoft\StringHelper;
+use Lengbin\YiiDb\Component;
 use Lengbin\YiiDb\Exception\InvalidArgumentException;
 use Lengbin\YiiDb\Exception\InvalidConfigException;
+use Lengbin\YiiDb\Validators\RequiredValidator;
 use Lengbin\YiiDb\Validators\Validator;
-use Yiisoft\Strings\Inflector;
-use Yiisoft\Strings\StringHelper;
-use Lengbin\YiiDb\StaticInstanceInterface;
-use Lengbin\YiiDb\StaticInstanceTrait;
+use ArrayAccess;
+use ArrayIterator;
+use ArrayObject;
+use IteratorAggregate;
+use ReflectionClass;
 
-/**
- * Model is the base class for data models.
- *
- * Model implements the following commonly used features:
- *
- * - attribute declaration: by default, every public class member is considered as
- *   a model attribute
- * - attribute labels: each attribute may be associated with a label for display purpose
- * - massive attribute assignment
- * - scenario-based validation
- *
- * Model also raises the following events when performing data validation:
- *
- * - [[EVENT_BEFORE_VALIDATE]]: an event raised at the beginning of [[validate()]]
- * - [[EVENT_AFTER_VALIDATE]]: an event raised at the end of [[validate()]]
- *
- * You may directly use Model to store model data, or extend it with customization.
- *
- * For more details and usage information on Model, see the [guide article on models](guide:structure-models).
- *
- * @property \yii\validators\Validator[] $activeValidators The validators applicable to the current
- * [[scenario]]. This property is read-only.
- * @property array $attributes Attribute values (name => value).
- * @property array $errors An array of errors for all attributes. Empty array is returned if no error. The
- * result is a two-dimensional array. See [[getErrors()]] for detailed description. This property is read-only.
- * @property array $firstErrors The first errors. The array keys are the attribute names, and the array values
- * are the corresponding error messages. An empty array will be returned if there is no error. This property is
- * read-only.
- * @property \ArrayIterator $iterator An iterator for traversing the items in the list. This property is
- * read-only.
- * @property string $scenario The scenario that this model is in. Defaults to [[SCENARIO_DEFAULT]].
- * @property \ArrayObject|\yii\validators\Validator[] $validators All the validators declared in the model.
- * This property is read-only.
- *
- * @author Qiang Xue <qiang.xue@gmail.com>
- * @since 2.0
- */
-class Model  implements  StaticInstanceInterface,\IteratorAggregate, \ArrayAccess, Arrayable
+class Model extends Component implements StaticInstanceInterface, IteratorAggregate, ArrayAccess, Arrayable
 {
     use ArrayableTrait;
     use StaticInstanceTrait;
@@ -62,23 +22,23 @@ class Model  implements  StaticInstanceInterface,\IteratorAggregate, \ArrayAcces
     /**
      * The name of the default scenario.
      */
-    const SCENARIO_DEFAULT = 'default';
+    const SCENARIO_DEFAULT = 'Model::default';
     /**
      * @event ModelEvent an event raised at the beginning of [[validate()]]. You may set
      * [[ModelEvent::isValid]] to be false to stop the validation.
      */
-    const EVENT_BEFORE_VALIDATE = 'beforeValidate';
+    const EVENT_BEFORE_VALIDATE = 'Model::beforeValidate';
     /**
      * @event Event an event raised at the end of [[validate()]]
      */
-    const EVENT_AFTER_VALIDATE = 'afterValidate';
+    const EVENT_AFTER_VALIDATE = 'Model::afterValidate';
 
     /**
      * @var array validation errors (attribute name => array of errors)
      */
     private $_errors;
     /**
-     * @var \ArrayObject list of validators
+     * @var ArrayObject list of validators
      */
     private $_validators;
     /**
@@ -251,7 +211,7 @@ class Model  implements  StaticInstanceInterface,\IteratorAggregate, \ArrayAcces
      */
     public function formName()
     {
-        $reflector = new \ReflectionClass($this);
+        $reflector = new ReflectionClass($this);
         if (PHP_VERSION_ID >= 70000 && $reflector->isAnonymous()) {
             throw new InvalidConfigException('The "formName()" method should be explicitly defined for anonymous models');
         }
@@ -266,13 +226,14 @@ class Model  implements  StaticInstanceInterface,\IteratorAggregate, \ArrayAcces
      */
     public function attributes()
     {
-        $class = new \ReflectionClass($this);
+        $class = new ReflectionClass($this);
         $names = [];
         foreach ($class->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
             if (!$property->isStatic()) {
                 $names[] = $property->getName();
             }
         }
+
         return $names;
     }
 
@@ -295,53 +256,6 @@ class Model  implements  StaticInstanceInterface,\IteratorAggregate, \ArrayAcces
     public function attributeLabels()
     {
         return [];
-    }
-
-    /**
-     * Returns the attribute hints.
-     *
-     * Attribute hints are mainly used for display purpose. For example, given an attribute
-     * `isPublic`, we can declare a hint `Whether the post should be visible for not logged in users`,
-     * which provides user-friendly description of the attribute meaning and can be displayed to end users.
-     *
-     * Unlike label hint will not be generated, if its explicit declaration is omitted.
-     *
-     * Note, in order to inherit hints defined in the parent class, a child class needs to
-     * merge the parent hints with child hints using functions such as `array_merge()`.
-     *
-     * @return array attribute hints (name => hint)
-     * @since 2.0.4
-     */
-    public function attributeHints()
-    {
-        return [];
-    }
-
-    /**
-     * This method is invoked before validation starts.
-     * The default implementation raises a `beforeValidate` event.
-     * You may override this method to do preliminary checks before validation.
-     * Make sure the parent implementation is invoked so that the event can be raised.
-     * @return bool whether the validation should be executed. Defaults to true.
-     * If false is returned, the validation will stop and the model is considered invalid.
-     */
-    public function beforeValidate()
-    {
-        $event = new ModelEvent();
-        $this->trigger(self::EVENT_BEFORE_VALIDATE, $event);
-
-        return $event->isValid;
-    }
-
-    /**
-     * This method is invoked after validation ends.
-     * The default implementation raises an `afterValidate` event.
-     * You may override this method to do postprocessing after validation.
-     * Make sure the parent implementation is invoked so that the event can be raised.
-     */
-    public function afterValidate()
-    {
-        $this->trigger(self::EVENT_AFTER_VALIDATE);
     }
 
     /**
@@ -398,6 +312,33 @@ class Model  implements  StaticInstanceInterface,\IteratorAggregate, \ArrayAcces
     }
 
     /**
+     * This method is invoked before validation starts.
+     * The default implementation raises a `beforeValidate` event.
+     * You may override this method to do preliminary checks before validation.
+     * Make sure the parent implementation is invoked so that the event can be raised.
+     * @return bool whether the validation should be executed. Defaults to true.
+     * If false is returned, the validation will stop and the model is considered invalid.
+     */
+    public function beforeValidate()
+    {
+        $event = new ModelEvent();
+        $this->trigger(self::EVENT_BEFORE_VALIDATE, $event);
+
+        return $event->isValid;
+    }
+
+    /**
+     * This method is invoked after validation ends.
+     * The default implementation raises an `afterValidate` event.
+     * You may override this method to do postprocessing after validation.
+     * Make sure the parent implementation is invoked so that the event can be raised.
+     */
+    public function afterValidate()
+    {
+        $this->trigger(self::EVENT_AFTER_VALIDATE);
+    }
+
+    /**
      * Returns all the validators declared in [[rules()]].
      *
      * This method differs from [[getActiveValidators()]] in that the latter
@@ -411,7 +352,7 @@ class Model  implements  StaticInstanceInterface,\IteratorAggregate, \ArrayAcces
      * $model->validators[] = $newValidator;
      * ```
      *
-     * @return \ArrayObject|Validator[] all the validators declared in the model.
+     * @return ArrayObject|Validator[] all the validators declared in the model.
      */
     public function getValidators()
     {
@@ -451,30 +392,20 @@ class Model  implements  StaticInstanceInterface,\IteratorAggregate, \ArrayAcces
         return $validators;
     }
 
-    public function hasMethod($name)
-    {
-        if (method_exists($this, $name)) {
-            return true;
-        }
-        return false;
-    }
-
-    public $isTranslate = true;
-
     /**
      * Creates validator objects based on the validation rules specified in [[rules()]].
      * Unlike [[getValidators()]], each time this method is called, a new list of validators will be returned.
-     * @return \ArrayObject validators
+     * @return ArrayObject validators
      * @throws InvalidConfigException if any validation rule configuration is invalid
      */
     public function createValidators()
     {
-        $validators = new \ArrayObject();
+        $validators = new ArrayObject();
         foreach ($this->rules() as $rule) {
             if ($rule instanceof Validator) {
                 $validators->append($rule);
             } elseif (is_array($rule) && isset($rule[0], $rule[1])) { // attributes, validator type
-                $validator = Validator::createValidator($rule[1], $this, (array) $rule[0], array_slice($rule, 2), $this->isTranslate);
+                $validator = Validator::createValidator($rule[1], $this, (array) $rule[0], array_slice($rule, 2));
                 $validators->append($validator);
             } else {
                 throw new InvalidConfigException('Invalid validation rule: a rule must specify both attribute names and validator type.');
@@ -482,6 +413,31 @@ class Model  implements  StaticInstanceInterface,\IteratorAggregate, \ArrayAcces
         }
 
         return $validators;
+    }
+
+    /**
+     * Returns a value indicating whether the attribute is required.
+     * This is determined by checking if the attribute is associated with a
+     * [[\yii\validators\RequiredValidator|required]] validation rule in the
+     * current [[scenario]].
+     *
+     * Note that when the validator has a conditional validation applied using
+     * [[\yii\validators\RequiredValidator::$when|$when]] this method will return
+     * `false` regardless of the `when` condition because it may be called be
+     * before the model is loaded with data.
+     *
+     * @param string $attribute attribute name
+     * @return bool whether the attribute is required
+     */
+    public function isAttributeRequired($attribute)
+    {
+        foreach ($this->getActiveValidators($attribute) as $validator) {
+            if ($validator instanceof RequiredValidator && $validator->when === null) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -682,8 +638,13 @@ class Model  implements  StaticInstanceInterface,\IteratorAggregate, \ArrayAcces
      */
     public function generateAttributeLabel($name)
     {
-        $inflector = new Inflector();
-        return $inflector->camel2words($name, true);
+        $label = mb_strtolower(trim(str_replace([
+            '-',
+            '_',
+            '.',
+        ], ' ', preg_replace('/(?<!\p{Lu})(\p{Lu})|(\p{Lu})(?=\p{Ll})/u', ' \0', $name))), 'UTF-8');
+
+        return StringHelper::ucwords($label, 'UTF-8');
     }
 
     /**
@@ -785,6 +746,7 @@ class Model  implements  StaticInstanceInterface,\IteratorAggregate, \ArrayAcces
                 $attributes[] = $attribute;
             }
         }
+
         return $attributes;
     }
 
@@ -801,7 +763,7 @@ class Model  implements  StaticInstanceInterface,\IteratorAggregate, \ArrayAcces
         }
         $attributes = array_keys(array_flip($scenarios[$scenario]));
         foreach ($attributes as $i => $attribute) {
-            if ($attribute[0] === '!') {
+            if (strncmp($attribute, '!', 1) === 0) {
                 $attributes[$i] = substr($attribute, 1);
             }
         }
@@ -976,12 +938,12 @@ class Model  implements  StaticInstanceInterface,\IteratorAggregate, \ArrayAcces
     /**
      * Returns an iterator for traversing the attributes in the model.
      * This method is required by the interface [[\IteratorAggregate]].
-     * @return \ArrayIterator an iterator for traversing the items in the list.
+     * @return ArrayIterator an iterator for traversing the items in the list.
      */
     public function getIterator()
     {
         $attributes = $this->getAttributes();
-        return new \ArrayIterator($attributes);
+        return new ArrayIterator($attributes);
     }
 
     /**
@@ -1029,83 +991,5 @@ class Model  implements  StaticInstanceInterface,\IteratorAggregate, \ArrayAcces
     public function offsetUnset($offset)
     {
         $this->$offset = null;
-    }
-
-    /**
-     * @var array the attached event handlers (event name => handlers)
-     */
-    private $_events = [];
-    /**
-     * @var array the event handlers attached for wildcard patterns (event name wildcard => handlers)
-     * @since 2.0.14
-     */
-    private $_eventWildcards = [];
-
-
-    public function on($name, $handler, $data = null, $append = true)
-    {
-        if (strpos($name, '*') !== false) {
-            if ($append || empty($this->_eventWildcards[$name])) {
-                $this->_eventWildcards[$name][] = [$handler, $data];
-            } else {
-                array_unshift($this->_eventWildcards[$name], [$handler, $data]);
-            }
-            return;
-        }
-
-        if ($append || empty($this->_events[$name])) {
-            $this->_events[$name][] = [$handler, $data];
-        } else {
-            array_unshift($this->_events[$name], [$handler, $data]);
-        }
-    }
-
-    /**
-     * Triggers an event.
-     * This method represents the happening of an event. It invokes
-     * all attached handlers for the event including class-level handlers.
-     * @param string $name the event name
-     * @param Event|null $event
-     */
-    public function trigger($name, Event $event = null)
-    {
-        $eventHandlers = [];
-        foreach ($this->_eventWildcards as $wildcard => $handlers) {
-            if (StringHelper::matchWildcard($wildcard, $name)) {
-                $eventHandlers = array_merge($eventHandlers, $handlers);
-            }
-        }
-
-        if (!empty($this->_events[$name])) {
-            $eventHandlers = array_merge($eventHandlers, $this->_events[$name]);
-        }
-
-        if (!empty($eventHandlers)) {
-            if ($event === null) {
-                $event = new Event();
-            }
-            if ($event->sender === null) {
-                $event->sender = $this;
-            }
-            $event->handled = false;
-            $event->name = $name;
-            foreach ($eventHandlers as $handler) {
-                $event->data = $handler[1];
-                call_user_func($handler[0], $event);
-                // stop further handling if the event is handled
-                if ($event->handled) {
-                    return;
-                }
-            }
-        }
-
-        // invoke class-level attached handlers
-        Event::trigger($this, $name, $event);
-    }
-
-    public function __clone()
-    {
-        $this->_events = [];
-        $this->_eventWildcards = [];
     }
 }

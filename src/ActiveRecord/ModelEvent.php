@@ -5,7 +5,11 @@
  * @license http://www.yiiframework.com/license/
  */
 
-namespace Lengbin\YiiDb\Event;
+declare(strict_types=1);
+
+namespace Lengbin\YiiDb\ActiveRecord;
+
+use Lengbin\YiiDb\Event;
 
 /**
  * ModelEvent represents the parameter needed by [[Model]] events.
