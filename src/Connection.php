@@ -898,7 +898,7 @@ class Connection extends Component implements ConnectionInterface
         $driver = $this->getDriverName();
         if (isset($this->schemaMap[$driver])) {
             $class = $this->schemaMap[$driver];
-            return $this->_schema = new $class(['db' => $this]);
+            return $this->_schema = new $class($this);
         }
 
         throw new NotSupportedException("Connection does not support reading schema information for '$driver' DBMS.");
@@ -1284,9 +1284,9 @@ class Connection extends Component implements ConnectionInterface
 	if (!isset($sharedConfig['class'])) {
             $sharedConfig['class'] = get_class($this);
         }
-	
+
 	$class = $sharedConfig['class'];
-	
+
 
         $cache = $this->serverStatusCache;
 
