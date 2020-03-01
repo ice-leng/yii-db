@@ -103,30 +103,11 @@ class ActiveRecord extends BaseActiveRecord
      */
     const OP_ALL = 0x07;
 
-    private static $_db;
-
-    /**
-     * connection
-     *
-     * @param null $connection
-     *
-     * @return ConnectionInterface|null
-     */
-    protected static function getConnection($connection = null)
-    {
-        if (!is_null($connection)) {
-            return $connection;
-        }
-        // 基于 hyperf make
-        if (function_exists('make')) {
-            $connection = make(ConnectionInterface::class);
-        }
-        return $connection;
-    }
+    public static $_db;
 
     public function __construct(array $config = [], ConnectionInterface $connection = null)
     {
-        self::$_db = self::getConnection($connection);
+        self::$_db = $connection;
         parent::__construct($config);
     }
 
@@ -166,7 +147,7 @@ class ActiveRecord extends BaseActiveRecord
      */
     public static function getDb()
     {
-        return self::getConnection(self::$_db);
+        return static::$_db;
     }
 
     /**
@@ -315,7 +296,11 @@ class ActiveRecord extends BaseActiveRecord
      */
     public static function updateAll($attributes, $condition = '', $params = [])
     {
-        $command = static::getDb()->createCommand();
+        $db = static::$_db;
+        if ($db === null) {
+            $db = static::getDb();
+        }
+        $command = $db->createCommand();
         $command->update(static::tableName(), $attributes, $condition, $params);
 
         return $command->execute();
@@ -349,7 +334,13 @@ class ActiveRecord extends BaseActiveRecord
             $counters[$name] = new Expression("[[$name]]+:bp{$n}", [":bp{$n}" => $value]);
             $n++;
         }
-        $command = static::getDb()->createCommand();
+
+        $db = static::$_db;
+        if ($db === null) {
+            $db = static::getDb();
+        }
+
+        $command = $db->createCommand();
         $command->update(static::tableName(), $counters, $condition, $params);
 
         return $command->execute();
@@ -388,7 +379,11 @@ class ActiveRecord extends BaseActiveRecord
      */
     public static function deleteAll($condition = null, $params = [])
     {
-        $command = static::getDb()->createCommand();
+        $db = static::$_db;
+        if ($db === null) {
+            $db = static::getDb();
+        }
+        $command = $db->createCommand();
         $command->delete(static::tableName(), $condition, $params);
 
         return $command->execute();
@@ -400,11 +395,6 @@ class ActiveRecord extends BaseActiveRecord
      */
     public static function find()
     {
-//        if (function_exists('make')) {
-//            $query = make(ActiveQuery::class, [get_called_class()]);
-//        } else {
-//            $query = new ActiveQuery(get_called_class());
-//        }
         return new ActiveQuery(get_called_class());
     }
 
@@ -438,7 +428,12 @@ class ActiveRecord extends BaseActiveRecord
      */
     public static function getTableSchema()
     {
-        $tableSchema = static::getDb()->getSchema()->getTableSchema(static::tableName());
+        $db = static::$_db;
+        if ($db === null) {
+            $db = static::getDb();
+        }
+
+        $tableSchema = $db->getSchema()->getTableSchema(static::tableName());
 
         if ($tableSchema === null) {
             throw new InvalidConfigException('The table does not exist: ' . static::tableName());
@@ -513,15 +508,16 @@ class ActiveRecord extends BaseActiveRecord
     /**
      * {@inheritdoc}
      */
-    public static function populateRecord($record, $row)
+    public static function populateRecord($record, $row, $db = null)
     {
+        static::$_db = $db;
         $columns = static::getTableSchema()->columns;
         foreach ($row as $name => $value) {
             if (isset($columns[$name])) {
                 $row[$name] = $columns[$name]->phpTypecast($value);
             }
         }
-        parent::populateRecord($record, $row);
+        parent::populateRecord($record, $row, $db);
     }
 
     /**
@@ -568,7 +564,10 @@ class ActiveRecord extends BaseActiveRecord
      */
     public function insert($runValidation = true, $attributes = null)
     {
-        $db = static::getDb();
+        $db = static::$_db;
+        if ($db === null) {
+            $db = static::getDb();
+        }
         if ($runValidation && !$this->validate($attributes)) {
             if ($db->logger instanceof LoggerInterface) {
                 $db->logger->info(__METHOD__ . ' Model not inserted due to validation error.');
@@ -611,7 +610,11 @@ class ActiveRecord extends BaseActiveRecord
             return false;
         }
         $values = $this->getDirtyAttributes($attributes);
-        if (($primaryKeys = static::getDb()->schema->insert(static::tableName(), $values)) === false) {
+        $db = static::$_db;
+        if ($db === null) {
+            $db = static::getDb();
+        }
+        if (($primaryKeys = $db->schema->insert(static::tableName(), $values)) === false) {
             return false;
         }
         foreach ($primaryKeys as $name => $value) {
@@ -682,7 +685,10 @@ class ActiveRecord extends BaseActiveRecord
      */
     public function update($runValidation = true, $attributeNames = null)
     {
-        $db = static::getDb();
+        $db = static::$_db;
+        if ($db === null) {
+            $db = static::getDb();
+        }
         if ($runValidation && !$this->validate($attributeNames)) {
             if ($db->logger instanceof LoggerInterface) {
                 $db->logger->info(__METHOD__ . ' Model not updated due to validation error.');
@@ -736,7 +742,12 @@ class ActiveRecord extends BaseActiveRecord
             return $this->deleteInternal();
         }
 
-        $transaction = static::getDb()->beginTransaction();
+        $db = static::$_db;
+        if ($db === null) {
+            $db = static::getDb();
+        }
+
+        $transaction = $db->beginTransaction();
         try {
             $result = $this->deleteInternal();
             if ($result === false) {

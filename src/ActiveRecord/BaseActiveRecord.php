@@ -1185,7 +1185,7 @@ abstract class BaseActiveRecord extends Model implements ActiveRecordInterface
      * created by [[instantiate()]] beforehand.
      * @param array $row attribute values (name => value)
      */
-    public static function populateRecord($record, $row)
+    public static function populateRecord($record, $row, $db = null)
     {
         $columns = array_flip($record->attributes());
         foreach ($row as $name => $value) {

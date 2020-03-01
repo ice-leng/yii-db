@@ -318,8 +318,8 @@ class Connection extends Component implements ConnectionInterface
      * [[Schema]] class to support DBMS that is not supported by Yii.
      */
     public $schemaMap = [
-        'mysqli' => 'Lengbin\YiiDb\Mysql\Schema', // MySQL
-        'mysql'  => 'Lengbin\YiiDb\Mysql\Schema', // MySQL
+        'mysqli'  => 'Lengbin\YiiDb\Mysql\Schema', // MySQL
+        'mysql'   => 'Lengbin\YiiDb\Mysql\Schema', // MySQL
         'pgsql'   => 'Lengbin\YiiDb\Pgsql\Schema', // PostgreSQL
         'sqlite'  => 'Lengbin\YiiDb\sqlite\Schema', // sqlite 3
         'sqlite2' => 'Lengbin\YiiDb\Sqlite\Schema', // sqlite 2
@@ -339,8 +339,8 @@ class Connection extends Component implements ConnectionInterface
      * @var string the class used to create new database [[Command]] objects. If you want to extend the [[Command]] class,
      * you may configure this property to use your extended version of the class.
      * Since version 2.0.14 [[$commandMap]] is used if this property is set to its default value.
-     * @see createCommand
-     * @since 2.0.7
+     * @see        createCommand
+     * @since      2.0.7
      * @deprecated since 2.0.14. Use [[$commandMap]] for precise configuration.
      */
     public $commandClass = 'Lengbin\YiiDb\Command';
@@ -357,8 +357,8 @@ class Connection extends Component implements ConnectionInterface
      * @since 2.0.14
      */
     public $commandMap = [
-        'mysqli' => 'Lengbin\YiiDb\Command', // MySQL
-        'mysql'  => 'Lengbin\YiiDb\Command', // MySQL
+        'mysqli'  => 'Lengbin\YiiDb\Command', // MySQL
+        'mysql'   => 'Lengbin\YiiDb\Command', // MySQL
         'pgsql'   => 'Lengbin\YiiDb\Command', // PostgreSQL
         'sqlite'  => 'Lengbin\YiiDb\Sqlite\Command', // sqlite 3
         'sqlite2' => 'Lengbin\YiiDb\Sqlite\Command', // sqlite 2
@@ -366,7 +366,7 @@ class Connection extends Component implements ConnectionInterface
         'oci'     => 'Lengbin\YiiDb\Command', // Oracle driver
         'mssql'   => 'Lengbin\YiiDb\Command', // older MSSQL driver on MS Windows hosts
         'dblib'   => 'Lengbin\YiiDb\Command', // dblib drivers on GNU/Linux (and maybe other OSes) hosts
-	'cubrid'  => 'Lengbin\YiiDb\Command', // CUBRID
+        'cubrid'  => 'Lengbin\YiiDb\Command', // CUBRID
     ];
     /**
      * @var bool whether to enable [savepoint](http://en.wikipedia.org/wiki/Savepoint).
@@ -500,11 +500,6 @@ class Connection extends Component implements ConnectionInterface
     {
         if (is_array($dsn)) {
             $this->dsn = $this->buildDSN($dsn);
-        }
-
-        // 基于 hyperf make
-        if (is_null($logger) && function_exists('make')) {
-            $logger = make(LoggerInterface::class);
         }
 
         $this->logger = $logger;
@@ -1049,17 +1044,13 @@ class Connection extends Component implements ConnectionInterface
      */
     public function quoteSql($sql)
     {
-        return preg_replace_callback(
-            '/(\\{\\{(%?[\w\-\. ]+%?)\\}\\}|\\[\\[([\w\-\. ]+)\\]\\])/',
-            function ($matches) {
-                if (isset($matches[3])) {
-                    return $this->quoteColumnName($matches[3]);
-                }
+        return preg_replace_callback('/(\\{\\{(%?[\w\-\. ]+%?)\\}\\}|\\[\\[([\w\-\. ]+)\\]\\])/', function ($matches) {
+            if (isset($matches[3])) {
+                return $this->quoteColumnName($matches[3]);
+            }
 
-                return str_replace('%', $this->tablePrefix, $this->quoteTableName($matches[2]));
-            },
-            $sql
-        );
+            return str_replace('%', $this->tablePrefix, $this->quoteTableName($matches[2]));
+        }, $sql);
     }
 
     /**
@@ -1185,9 +1176,8 @@ class Connection extends Component implements ConnectionInterface
     public function getMaster()
     {
         if ($this->_master === false) {
-            $this->_master = $this->shuffleMasters
-                ? $this->openFromPool($this->masters, $this->masterConfig)
-                : $this->openFromPoolSequentially($this->masters, $this->masterConfig);
+            $this->_master = $this->shuffleMasters ? $this->openFromPool($this->masters, $this->masterConfig) : $this->openFromPoolSequentially($this->masters,
+                $this->masterConfig);
         }
 
         return $this->_master;
@@ -1285,12 +1275,11 @@ class Connection extends Component implements ConnectionInterface
             return null;
         }
 
-	if (!isset($sharedConfig['class'])) {
+        if (!isset($sharedConfig['class'])) {
             $sharedConfig['class'] = get_class($this);
         }
 
-	$class = $sharedConfig['class'];
-
+        $class = $sharedConfig['class'];
 
         $cache = $this->serverStatusCache;
 
@@ -1348,7 +1337,6 @@ class Connection extends Component implements ConnectionInterface
             foreach ($config as $key => $value) {
                 $parts[] = "$key=$value";
             }
-
             return "$driver:" . implode(';', $parts);
         }
 

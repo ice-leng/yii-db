@@ -137,15 +137,10 @@ class Query extends Component implements QueryInterface, ExpressionInterface
      */
     public $queryCacheDependency;
 
-
     private $_db;
 
     public function __construct(array $config = [], ConnectionInterface $connection = null)
     {
-        // 基于 hyperf make
-        if (is_null($connection) && function_exists('make')) {
-            $connection = make(ConnectionInterface::class);
-        }
         $this->_db = $connection;
         parent::__construct($config);
     }
@@ -269,7 +264,7 @@ class Query extends Component implements QueryInterface, ExpressionInterface
         }
         $rows = $this->createCommand($db)->queryAll();
 
-        return $this->populate($rows);
+        return $this->populate($rows, $db);
     }
 
     /**
@@ -281,7 +276,7 @@ class Query extends Component implements QueryInterface, ExpressionInterface
      *
      * @return array the converted query result
      */
-    public function populate($rows)
+    public function populate($rows, $db = null)
     {
         if ($this->indexBy === null) {
             return $rows;

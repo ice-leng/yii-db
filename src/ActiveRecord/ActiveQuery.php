@@ -188,13 +188,13 @@ class ActiveQuery extends Query implements ActiveQueryInterface
     /**
      * {@inheritdoc}
      */
-    public function populate($rows)
+    public function populate($rows, $db = null)
     {
         if (empty($rows)) {
             return [];
         }
 
-        $models = $this->createModels($rows);
+        $models = $this->createModels($rows, $db);
         if (!empty($this->join) && $this->indexBy === null) {
             $models = $this->removeDuplicatedModels($models);
         }
@@ -282,7 +282,7 @@ class ActiveQuery extends Query implements ActiveQueryInterface
     {
         $row = parent::one($db);
         if ($row !== false) {
-            $models = $this->populate([$row]);
+            $models = $this->populate([$row], $db);
             return reset($models) ?: null;
         }
 
@@ -300,7 +300,10 @@ class ActiveQuery extends Query implements ActiveQueryInterface
         /* @var $modelClass ActiveRecord */
         $modelClass = $this->modelClass;
         if ($db === null) {
-            $db = $modelClass::getDb();
+            $db = $modelClass::$_db;
+            if ($db === null) {
+                $db = $modelClass::getDb();
+            }
         }
 
         if ($this->sql === null) {
