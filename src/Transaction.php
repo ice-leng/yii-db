@@ -14,6 +14,7 @@ use Lengbin\Helper\YiiSoft\ObjectHelper;
 use Lengbin\YiiDb\Exception\Exception;
 use Lengbin\YiiDb\Exception\InvalidConfigException;
 use Lengbin\YiiDb\Exception\NotSupportedException;
+use Psr\Log\LoggerInterface;
 
 /**
  * Transaction represents a DB transaction.
@@ -137,7 +138,9 @@ class Transaction extends ObjectHelper
             if ($isolationLevel !== null) {
                 $this->db->getSchema()->setTransactionIsolationLevel($isolationLevel);
             }
-            $this->db->logger->debug(__METHOD__ . ' Begin transaction'.($isolationLevel ? ' with isolation level '.$isolationLevel : ''));
+            if ($this->db->logger instanceof LoggerInterface) {
+                $this->db->logger->debug(__METHOD__ . ' Begin transaction'.($isolationLevel ? ' with isolation level '.$isolationLevel : ''));
+            }
 
             $this->db->trigger(Connection::EVENT_BEGIN_TRANSACTION);
             $this->db->pdo->beginTransaction();
@@ -148,10 +151,14 @@ class Transaction extends ObjectHelper
 
         $schema = $this->db->getSchema();
         if ($schema->supportsSavepoint()) {
-            $this->db->logger->debug(__METHOD__ . ' Set savepoint '.$this->_level);
+            if ($this->db->logger instanceof LoggerInterface) {
+                $this->db->logger->debug(__METHOD__ . ' Set savepoint '.$this->_level);
+            }
             $schema->createSavepoint('LEVEL'.$this->_level);
         } else {
-            $this->db->logger->info(__METHOD__ . ' Transaction not started: nested transaction not supported');
+            if ($this->db->logger instanceof LoggerInterface) {
+                $this->db->logger->info(__METHOD__ . ' Transaction not started: nested transaction not supported');
+            }
 
             throw new NotSupportedException('Transaction not started: nested transaction not supported.');
         }
@@ -171,7 +178,9 @@ class Transaction extends ObjectHelper
 
         $this->_level--;
         if ($this->_level === 0) {
-            $this->db->logger->debug(__METHOD__ . ' Commit transaction');
+            if ($this->db->logger instanceof LoggerInterface) {
+                $this->db->logger->debug(__METHOD__ . ' Commit transaction');
+            }
             $this->db->pdo->commit();
             $this->db->trigger(Connection::EVENT_COMMIT_TRANSACTION);
 
@@ -180,10 +189,14 @@ class Transaction extends ObjectHelper
 
         $schema = $this->db->getSchema();
         if ($schema->supportsSavepoint()) {
-            $this->db->logger->debug(__METHOD__ . ' Release savepoint '.$this->_level);
+            if ($this->db->logger instanceof LoggerInterface) {
+                $this->db->logger->debug(__METHOD__ . ' Release savepoint '.$this->_level);
+            }
             $schema->releaseSavepoint('LEVEL'.$this->_level);
         } else {
-            $this->db->logger->info(__METHOD__ . ' Transaction not committed: nested transaction not supported');
+            if ($this->db->logger instanceof LoggerInterface) {
+                $this->db->logger->info(__METHOD__ . ' Transaction not committed: nested transaction not supported');
+            }
         }
     }
 
@@ -200,7 +213,9 @@ class Transaction extends ObjectHelper
 
         $this->_level--;
         if ($this->_level === 0) {
-            $this->db->logger->debug(__METHOD__ . ' Roll back transaction');
+            if ($this->db->logger instanceof LoggerInterface) {
+                $this->db->logger->debug(__METHOD__ . ' Roll back transaction');
+            }
             $this->db->pdo->rollBack();
             $this->db->trigger(Connection::EVENT_ROLLBACK_TRANSACTION);
 
@@ -209,10 +224,14 @@ class Transaction extends ObjectHelper
 
         $schema = $this->db->getSchema();
         if ($schema->supportsSavepoint()) {
-            $this->db->logger->debug(__METHOD__ . ' Roll back to savepoint '.$this->_level);
+            if ($this->db->logger instanceof LoggerInterface) {
+                $this->db->logger->debug(__METHOD__ . ' Roll back to savepoint '.$this->_level);
+            }
             $schema->rollBackSavepoint('LEVEL'.$this->_level);
         } else {
-            $this->db->logger->info(__METHOD__ . ' Transaction not rolled back: nested transaction not supported');
+            if ($this->db->logger instanceof LoggerInterface) {
+                $this->db->logger->info(__METHOD__ . ' Transaction not rolled back: nested transaction not supported');
+            }
         }
     }
 
@@ -236,7 +255,9 @@ class Transaction extends ObjectHelper
         if (!$this->getIsActive()) {
             throw new Exception('Failed to set isolation level: transaction was inactive.');
         }
-        $this->db->logger->debug(__METHOD__ . ' Setting transaction isolation level to '.$level);
+        if ($this->db->logger instanceof LoggerInterface) {
+            $this->db->logger->debug(__METHOD__ . ' Setting transaction isolation level to '.$level);
+        }
         $this->db->getSchema()->setTransactionIsolationLevel($level);
     }
 

@@ -678,7 +678,9 @@ class Connection extends Component implements ConnectionInterface
 
         $token = __METHOD__ . ' Opening DB connection: ' . $this->dsn;
         try {
-            $this->logger->info($token);
+            if ($this->logger instanceof LoggerInterface) {
+                $this->logger->info($token);
+            }
             $this->pdo = $this->createPdoInstance();
             $this->initConnection();
         } catch (\PDOException $e) {
@@ -702,7 +704,9 @@ class Connection extends Component implements ConnectionInterface
         }
 
         if ($this->pdo !== null) {
-            $this->logger->debug(__METHOD__ . ' Closing DB connection:');
+            if ($this->logger instanceof LoggerInterface) {
+                $this->logger->debug(__METHOD__ . ' Closing DB connection:');
+            }
             $this->pdo = null;
             $this->_schema = null;
             $this->_transaction = null;
@@ -1314,7 +1318,9 @@ class Connection extends Component implements ConnectionInterface
                 return $db;
             } catch (\Exception $e) {
 //                Yii::warning("Connection ({$config['dsn']}) failed: " . $e->getMessage(), __METHOD__);
-                $this->logger->warning("Connection ({$config['dsn']}) failed: " . $e->getMessage());
+                if ($this->logger instanceof LoggerInterface) {
+                    $this->logger->warning("Connection ({$config['dsn']}) failed: " . $e->getMessage());
+                }
                 if ($cache instanceof CacheInterface) {
                     // mark this server as dead and only retry it after the specified interval
                     $cache->set($key, 1, $this->serverRetryInterval);

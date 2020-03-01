@@ -18,6 +18,7 @@ use Lengbin\YiiDb\TableSchema;
 use Lengbin\YiiDb\Exception\InvalidArgumentException;
 use Lengbin\YiiDb\Exception\InvalidConfigException;
 use Lengbin\YiiDb\Exception\StaleObjectException;
+use Psr\Log\LoggerInterface;
 
 /**
  * ActiveRecord is the base class for classes representing relational data in terms of objects.
@@ -569,7 +570,9 @@ class ActiveRecord extends BaseActiveRecord
     {
         $db = static::getDb();
         if ($runValidation && !$this->validate($attributes)) {
-            $db->logger->info(__METHOD__ . ' Model not inserted due to validation error.');
+            if ($db->logger instanceof LoggerInterface) {
+                $db->logger->info(__METHOD__ . ' Model not inserted due to validation error.');
+            }
             return false;
         }
 
@@ -681,7 +684,9 @@ class ActiveRecord extends BaseActiveRecord
     {
         $db = static::getDb();
         if ($runValidation && !$this->validate($attributeNames)) {
-            $db->logger->info(__METHOD__ . ' Model not updated due to validation error.');
+            if ($db->logger instanceof LoggerInterface) {
+                $db->logger->info(__METHOD__ . ' Model not updated due to validation error.');
+            }
             return false;
         }
 

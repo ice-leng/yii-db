@@ -13,6 +13,7 @@ namespace Lengbin\YiiDb;
 use Lengbin\YiiDb\Exception\Exception;
 use Lengbin\YiiDb\Exception\InvalidConfigException;
 use Lengbin\YiiDb\Exception\NotSupportedException;
+use Psr\Log\LoggerInterface;
 
 /**
  * Command represents a SQL statement to be executed against a database.
@@ -1349,7 +1350,9 @@ class Command extends Component
         }
         $rawSql = $this->getRawSql();
         $this->prepare(false);
-        $this->db->logger->info(__METHOD__ . ' sql:' . $rawSql);
+        if ($this->db->logger instanceof LoggerInterface) {
+            $this->db->logger->info(__METHOD__ . ' sql:' . $rawSql);
+        }
         try {
             $this->internalExecute($rawSql);
             $n = $this->pdoStatement->rowCount();
@@ -1393,7 +1396,9 @@ class Command extends Component
                 $cacheKey = $this->db->buildKey($cacheKey);
                 $result = $cache->get($cacheKey);
                 if (is_array($result) && isset($result[0])) {
-                    $this->db->logger->debug(__METHOD__ . ' Query result served from cache');
+                    if ($this->db->logger instanceof LoggerInterface) {
+                        $this->db->logger->debug(__METHOD__ . ' Query result served from cache');
+                    }
                     return $result[0];
                 }
             }
@@ -1402,7 +1407,9 @@ class Command extends Component
         $this->prepare(true);
 
         try {
-            $this->db->logger->info(__METHOD__ . ' sql:' . $rawSql);
+            if ($this->db->logger instanceof LoggerInterface) {
+                $this->db->logger->info(__METHOD__ . ' sql:' . $rawSql);
+            }
             $this->internalExecute($rawSql);
 
             if ($method === '') {
@@ -1421,7 +1428,9 @@ class Command extends Component
 
         if (isset($cache, $cacheKey, $info)) {
             $cache->set($cacheKey, [$result], $info[1], $info[2]);
-            $this->db->logger->debug(__METHOD__ . ' Saved query result in cache');
+            if ($this->db->logger instanceof LoggerInterface) {
+                $this->db->logger->debug(__METHOD__ . ' Saved query result in cache');
+            }
         }
 
         return $result;
