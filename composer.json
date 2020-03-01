@@ -7,10 +7,9 @@
   "require": {
     "php": ">=7.2.0",
     "psr/simple-cache": "^1.0",
-    "lengbin/helper": "*"
+    "lengbin/helper": "dev-master"
   },
-  "minimum-stability": "dev",
-  "prefer-stable": true,
+  "minimum-stability": "stable",
   "autoload": {
     "psr-4": {
       "Lengbin\\YiiDb\\": "src"
