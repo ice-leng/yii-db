@@ -35,46 +35,13 @@ Configs
 
 ``` php
 
+    
+
 ```
 
 Usage
 -----
 用法和yii 是一致的
-
-```php
-
-            $demo = new Demo();
-    //        $demo = Demo::findOne('1');
-    //        $data = $demo->find()->all();
-            $demo->setAttributes(['name' => '2']);
-            $data = $demo->save();
-    
-    //        $query = new Query();
-    //        $query->from(['d' => 'demo']);
-    //            ->leftJoin(['d2' => 'demo2'], 'd2.demo_id = d.id')
-    //            ->select(['dn' => 'd2.name', 'd.id', 'd.name']);
-    //        $data =  $query->all();
-    
-```
-
-Tests
-------
-- Query
-  - from
-  - select
-  - all
-  - one
-  - leftJon
-- ActiveReode
-  - insert
-  - update
-- Validate
-  - required
-  - string
-  - default
-- Event
-  - EVENT_BEFORE_INSERT
-  - EVENT_BEFORE_UPDATE
 
 
 去掉不必要的
