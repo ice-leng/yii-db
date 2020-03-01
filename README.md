@@ -17,7 +17,7 @@ The preferred way to install this extension is through [composer](http://getcomp
 Either run
 
 ```
-composer require lengbin/yii-db "*"
+composer require lengbin/yii-db
 ```
 
 or add
