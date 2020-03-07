@@ -105,7 +105,7 @@ class ActiveRecord extends BaseActiveRecord
 
     public static $_db;
 
-    public function __construct(array $config = [], ConnectionInterface $connection = null)
+    public function __construct(ConnectionInterface $connection = null, array $config = [])
     {
         self::$_db = $connection;
         parent::__construct($config);

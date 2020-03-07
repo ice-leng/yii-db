@@ -79,7 +79,7 @@ $connect->password = '';
 //$data = $query->one($connect);
 
 // 方法 二
-//$query = new \Lengbin\YiiDb\Query([], $connect);
+//$query = new \Lengbin\YiiDb\Query($connect);
 //$query->from('demo');
 //$data = $query->all();
 //$query->where(['id' => 79]);
@@ -144,8 +144,8 @@ class Demo extends \Lengbin\YiiDb\ActiveRecord\ActiveRecord
 //$data = Demo::find()->where(['id' => 79])->one($connect);
 
 // 方法 二
-//$data = (new Demo([], $connect))->find()->all();
-//$data = (new Demo([], $connect))->find()->where(['id' => 79])->one();
+//$data = (new Demo($connect))->find()->all();
+//$data = (new Demo($connect))->find()->where(['id' => 79])->one();
 
 // 方法三
 // 需要 实现 getDb 返回 connection 对象
@@ -157,7 +157,7 @@ class Demo extends \Lengbin\YiiDb\ActiveRecord\ActiveRecord
 
 //insert
 // 方法 一
-//$model = (new Demo([], $connect));
+//$model = (new Demo($connect));
 //$model->setAttributes(['name' => 'hello2']);
 //$data = $model->save();
 
@@ -172,7 +172,7 @@ class Demo extends \Lengbin\YiiDb\ActiveRecord\ActiveRecord
 // 方法 一
 //$model = (new Demo())->find()->where(['id' => 79])->one($connect);;
 // 方法 二
-//$model = (new Demo([], $connect))->find()->where(['id' => 79])->one();
+//$model = (new Demo($connect))->find()->where(['id' => 79])->one();
 // 方法三
 // 需要 实现 getDb 返回 connection 对象
 //$model = (new Demo())->find()->where(['id' => 79])->one();;
@@ -184,7 +184,7 @@ class Demo extends \Lengbin\YiiDb\ActiveRecord\ActiveRecord
 // 方法 一
 //$model = (new Demo())->find()->where(['id' => 79])->one($connect);;
 // 方法 二
-//$model = (new Demo([], $connect))->find()->where(['id' => 79])->one();
+//$model = (new Demo($connect))->find()->where(['id' => 79])->one();
 // 方法三
 // 需要 实现 getDb 返回 connection 对象
 //$model = (new Demo())->find()->where(['id' => 79])->one();;

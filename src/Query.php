@@ -139,7 +139,7 @@ class Query extends Component implements QueryInterface, ExpressionInterface
 
     private $_db;
 
-    public function __construct(array $config = [], ConnectionInterface $connection = null)
+    public function __construct(ConnectionInterface $connection = null, array $config = [])
     {
         $this->_db = $connection;
         parent::__construct($config);
@@ -1464,7 +1464,7 @@ PATTERN;
      */
     public static function create($from)
     {
-        return new self([
+        return new self(null, [
             'where'        => $from->where,
             'limit'        => $from->limit,
             'offset'       => $from->offset,

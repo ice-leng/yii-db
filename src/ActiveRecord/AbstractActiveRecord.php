@@ -19,11 +19,11 @@ use Lengbin\YiiDb\ConnectionInterface;
 class AbstractActiveRecord extends ActiveRecord
 {
 
-    public function __construct(array $config = [], ConnectionInterface $connection = null)
+    public function __construct(ConnectionInterface $connection = null, array $config = [])
     {
         $this->on(self::BEFORE_INSERT, [$this, 'saveBeforeInsert']);
         $this->on(self::BEFORE_UPDATE, [$this, 'saveBeforeUpdate']);
-        parent::__construct($config, $connection);
+        parent::__construct($connection, $config);
     }
 
     protected function saveBeforeInsert($event)
