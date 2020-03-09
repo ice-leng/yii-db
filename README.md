@@ -51,25 +51,16 @@ Usage
 
 ```php
 
-$db = [
-    'db' => [
-        'class'    => 'yii\db\Connection',
-        'charset'  => 'utf8mb4',
-        'dsn'      => 'mysql:host=112.126.73.98;dbname=shuadan',
-        'username' => 'root',
-        'password' => '7fQi2uRPZpvbChzf',
-
-    ],
-];
-
 $connect = new \Lengbin\YiiDb\Connection([
     'driver'  => 'mysql',
     'host'    => '127.0.0.1',
     'dbname'  => 'hyperf',
     'charset' => 'utf8',
+    'prot'    =>  3306,
 ]);
 $connect->username = 'root';
 $connect->password = '';
+$connect->tablePrefix = '';
 
 // 方法 一
 //$query = new \Lengbin\YiiDb\Query();
