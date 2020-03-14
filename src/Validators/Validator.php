@@ -94,6 +94,14 @@ class Validator
         'unique' => 'Lengbin\YiiDb\Validators\UniqueValidator',
         'url' => 'Lengbin\YiiDb\Validators\UrlValidator',
         'ip' => 'Lengbin\YiiDb\Validators\IpValidator',
+        'password' => [
+            'class'   => 'Lengbin\YiiDb\Validators\RegularExpressionValidator',
+            'pattern' => '/^(?=.*[a-zA-Z0-9].*)(?=.*[a-zA-Z\\W].*)(?=.*[0-9\\W].*).{6,20}$/',
+        ],
+        'mobile'   => [
+            'class'   => 'Lengbin\YiiDb\Validators\RegularExpressionValidator',
+            'pattern' => '/^[1][0-9]{10}$/',
+        ],
     ];
     /**
      * @var array|string attributes to be validated by this validator. For multiple attributes,

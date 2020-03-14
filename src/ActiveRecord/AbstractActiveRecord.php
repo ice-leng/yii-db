@@ -13,6 +13,8 @@ use Lengbin\Helper\Util\SnowFlakeHelper;
 use Lengbin\Helper\YiiSoft\Arrays\ArrayHelper;
 use Lengbin\YiiDb\Exception\Exception;
 use Lengbin\YiiDb\Exception\InvalidConfigException;
+use Lengbin\YiiDb\Pagination;
+use Lengbin\YiiDb\Query;
 use Lengbin\YiiDb\Validators\Validator;
 use Lengbin\YiiDb\ConnectionInterface;
 
@@ -128,7 +130,7 @@ class AbstractActiveRecord extends ActiveRecord
      *
      * @param bool $isArray
      *
-     * @return array|mixed
+     * @return array|string|null
      */
     public function getFirstErrors($isArray = true)
     {
@@ -330,5 +332,42 @@ class AbstractActiveRecord extends ActiveRecord
             return false;
         }
         return $model->updateCounters($params);
+    }
+
+    /**
+     * 分页
+     *
+     * @param array $params
+     * @param       $model
+     * @param int   $pageSize
+     *
+     * @return array
+     * @throws \Lengbin\YiiDb\Exception\Exception
+     * @throws \Lengbin\YiiDb\Exception\InvalidConfigException
+     * @throws \Lengbin\YiiDb\Exception\NotSupportedException
+     * @throws \Throwable
+     */
+    public function page(array $params, $model, $pageSize = 20)
+    {
+        if ($model instanceof Query) {
+            $count = $model->count();
+        } else {
+            $count = count($model);
+        }
+        $pages = new Pagination([
+            'params'          => $params,
+            'totalCount'      => $count,
+            'defaultPageSize' => $pageSize,
+        ]);
+        if ($model instanceof Query) {
+            $models = $model->offset($pages->offset)->limit($pages->limit)->all();
+        } else {
+            /* @var $model array */
+            $models = array_slice($model, $pages->offset, $pages->limit);
+        }
+        return [
+            'models' => $models,
+            'pages'  => $pages,
+        ];
     }
 }
