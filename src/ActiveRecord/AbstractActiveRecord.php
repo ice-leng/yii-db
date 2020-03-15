@@ -139,22 +139,6 @@ class AbstractActiveRecord extends ActiveRecord
     }
 
     /**
-     * 重构  setAttributes 方法，去掉 为空的数据
-     *
-     * @param array $values
-     * @param bool  $safeOnly
-     */
-    public function setAttributes($values, $safeOnly = true)
-    {
-        foreach ($values as $key => $value) {
-            if (is_null($value)) {
-                unset($values[$key]);
-            }
-        }
-        parent::setAttributes($values, $safeOnly);
-    }
-
-    /**
      * // todo
      * 重构 创建规则规则
      *
@@ -166,7 +150,12 @@ class AbstractActiveRecord extends ActiveRecord
     public function createValidators()
     {
         $rules = $this->rules();
-        $key = array_keys($this->attributeLabels());
+        $key = [];
+        foreach ($this->getAttributes() as $name => $value) {
+            if ($this->isAttributeChanged($name) && is_string($value)) {
+                $key[] = $name;
+            }
+        }
         array_unshift($rules, [$key, 'trim']);
         $validators = new \ArrayObject();
         foreach ($rules as $rule) {
