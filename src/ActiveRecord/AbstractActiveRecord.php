@@ -337,9 +337,9 @@ class AbstractActiveRecord extends ActiveRecord
     /**
      * 分页
      *
-     * @param array $params
      * @param       $model
      * @param int   $pageSize
+     * @param array $params
      *
      * @return array
      * @throws \Lengbin\YiiDb\Exception\Exception
@@ -347,7 +347,7 @@ class AbstractActiveRecord extends ActiveRecord
      * @throws \Lengbin\YiiDb\Exception\NotSupportedException
      * @throws \Throwable
      */
-    public function page(array $params, $model, $pageSize = 20)
+    public function page($model, $pageSize = 20, array $params = [])
     {
         if ($model instanceof Query) {
             $count = $model->count();
