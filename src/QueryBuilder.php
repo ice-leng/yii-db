@@ -1645,7 +1645,7 @@ class QueryBuilder extends ObjectHelper
             if (isset($this->conditionClasses[$operator])) {
                 $className = $this->conditionClasses[$operator];
             } else {
-                $className = 'Yiisoft\Db\Conditions\SimpleCondition';
+                $className = 'Lengbin\YiiDb\Conditions\SimpleCondition';
             }
             /* @var ConditionInterface $className */
             return $className::fromArrayDefinition($operator, $condition);

@@ -262,6 +262,15 @@ class ActiveRecord extends BaseActiveRecord
     }
 
     /**
+     * {@inheritdoc}
+     */
+    public static function refreshTableScheme()
+    {
+        static::getTableSchema(true);
+        return true;
+    }
+
+    /**
      * Updates the whole table using the provided attribute values and conditions.
      *
      * For example, to change the status to be 1 for all customers whose status is 2:
@@ -422,18 +431,20 @@ class ActiveRecord extends BaseActiveRecord
     }
 
     /**
+     * @param bool $refresh
      * Returns the schema information of the DB table associated with this AR class.
+     *
      * @return TableSchema the schema information of the DB table associated with this AR class.
      * @throws InvalidConfigException if the table for the AR class does not exist.
      */
-    public static function getTableSchema()
+    public static function getTableSchema($refresh = false)
     {
         $db = static::$_db;
         if ($db === null) {
             $db = static::getDb();
         }
 
-        $tableSchema = $db->getSchema()->getTableSchema(static::tableName());
+        $tableSchema = $db->getSchema()->getTableSchema(static::tableName(), $refresh);
 
         if ($tableSchema === null) {
             throw new InvalidConfigException('The table does not exist: ' . static::tableName());
