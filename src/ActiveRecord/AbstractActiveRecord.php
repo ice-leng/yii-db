@@ -247,26 +247,6 @@ class AbstractActiveRecord extends ActiveRecord
     }
 
     /**
-     * 重构 删除
-     *
-     * @param string $isDeleteName
-     *
-     * @return int|false
-     * @throws \Throwable
-     */
-    public function delete($isDeleteName = 'is_delete')
-    {
-        if (!empty($isDeleteName)) {
-            $this->$isDeleteName = 1;
-            $this->save();
-            $model = true;
-        } else {
-            $model = parent::delete();
-        }
-        return $model;
-    }
-
-    /**
      * 通过id删除数据
      *
      * @param int    $id
@@ -281,7 +261,13 @@ class AbstractActiveRecord extends ActiveRecord
         if (empty($model)) {
             return false;
         }
-        return $model->delete($isDeleteName);
+        if (!empty($isDeleteName)) {
+            $model->$isDeleteName = 1;
+            $result = $model->save();
+        } else {
+            $result = $model->delete();
+        }
+        return $result;
     }
 
     /**
